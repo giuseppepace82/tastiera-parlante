@@ -2,11 +2,12 @@ window.GiocoTastiera = window.GiocoTastiera || {};
 
 (function(ns){
   const {
-    CATEGORY_LABELS,
     ARASAAC_IMAGE_SIZE,
     FAMILY_FALLBACK_IMAGE,
     IMAGE_QUERY_MAP,
-    MAX_REMOTE_IMAGE_CANDIDATES
+    MAX_REMOTE_IMAGE_CANDIDATES,
+    getCategoryLabel,
+    t
   } = ns.config;
   const { familyPictureKey, slugify, stripAccents } = ns.model;
 
@@ -31,7 +32,7 @@ window.GiocoTastiera = window.GiocoTastiera || {};
 
     buildSearchTerms(entry){
       const baseTerm = this.normalizeSearchTerm(entry);
-      const categoryLabel = (CATEGORY_LABELS[entry.category] || entry.category).toLowerCase();
+      const categoryLabel = getCategoryLabel(entry.category).toLowerCase();
       const terms = [
         baseTerm,
         baseTerm.includes(categoryLabel) ? "" : `${baseTerm} ${categoryLabel}`
@@ -45,7 +46,7 @@ window.GiocoTastiera = window.GiocoTastiera || {};
         .slice(0, MAX_REMOTE_IMAGE_CANDIDATES)
         .map(item => ({
           src: this.buildArasaacImageUrl(item._id),
-          source: `PITTOGRAMMA • ARASAAC • ${searchTerm.toUpperCase()} • ID ${item._id}`,
+          source: t("ui.imageSourceArasaac", { term: searchTerm.toUpperCase(), id: item._id }),
           sourceKind: "arasaac"
         }));
     }
@@ -96,7 +97,11 @@ window.GiocoTastiera = window.GiocoTastiera || {};
 
           candidates.push({
             src: this.normalizeUrl(resolvedPage.original.source),
-            source: `WEB • WIKIPEDIA • ${page.title.toUpperCase()} • ${resolvedPage.original.width}×${resolvedPage.original.height}`,
+            source: t("ui.imageSourceWikipedia", {
+              title: page.title.toUpperCase(),
+              width: resolvedPage.original.width,
+              height: resolvedPage.original.height
+            }),
             sourceKind: "wikimedia"
           });
 
@@ -145,10 +150,10 @@ window.GiocoTastiera = window.GiocoTastiera || {};
         const candidates = [];
 
         if(localPhoto){
-          candidates.push({ src: localPhoto, source: "FOTO LOCALE • FAMIGLIA", sourceKind: "local" });
+          candidates.push({ src: localPhoto, source: t("ui.imageSourceLocalFamily"), sourceKind: "local" });
         }
 
-        candidates.push({ src: FAMILY_FALLBACK_IMAGE, source: "SVG GENERICO • FAMIGLIA", sourceKind: "fallback" });
+        candidates.push({ src: FAMILY_FALLBACK_IMAGE, source: t("ui.imageSourceFallbackFamily"), sourceKind: "fallback" });
         return candidates;
       }
       return this.fetchRealtimeImage(entry);

@@ -1,7 +1,7 @@
 window.GiocoTastiera = window.GiocoTastiera || {};
 
 (function(ns){
-  const { CATEGORY_LABELS, CATEGORY_ORDER, CELEBRATION_MS } = ns.config;
+  const { CATEGORY_ORDER, CELEBRATION_MS, getCategoryLabel, getLocale, t } = ns.config;
   const { colorForChar, familyPictureKey, sanitizeWords: sanitizeWordList, stripAccents } = ns.model;
 
   class GameView {
@@ -41,7 +41,30 @@ window.GiocoTastiera = window.GiocoTastiera || {};
       this.familyPicturesEditor = null;
 
       this.buildSettingsEditor();
+      this.applyI18n();
       this.resizeCanvas();
+    }
+
+    applyI18n(){
+      document.documentElement.lang = getLocale();
+
+      document.querySelectorAll("[data-i18n]").forEach(element => {
+        element.textContent = t(element.dataset.i18n);
+      });
+
+      document.querySelectorAll("[data-i18n-html]").forEach(element => {
+        element.innerHTML = t(element.dataset.i18nHtml);
+      });
+
+      document.querySelectorAll("[data-i18n-placeholder]").forEach(element => {
+        element.placeholder = t(element.dataset.i18nPlaceholder);
+      });
+
+      document.querySelectorAll("[data-i18n-aria-label]").forEach(element => {
+        element.setAttribute("aria-label", t(element.dataset.i18nAriaLabel));
+      });
+
+      this.challengeLabel.textContent = t("ui.challengeLabel", { a: 3, b: 4 });
     }
 
     buildSettingsEditor(){
@@ -54,18 +77,18 @@ window.GiocoTastiera = window.GiocoTastiera || {};
             <header>
               <label>
                 <input type="checkbox" data-enabled="${category}">
-                ${CATEGORY_LABELS[category].toUpperCase()}
+                ${getCategoryLabel(category)}
               </label>
             </header>
             <textarea data-words="${category}" spellcheck="false"></textarea>
-            <p class="settings-inline-note">Per ogni voce della famiglia puoi scegliere una foto dal dispositivo. Se non imposti una foto, verrà usato l'SVG generico.</p>
+            <p class="settings-inline-note">${t("ui.familyInlineNote")}</p>
             <div class="family-pictures-editor" data-family-pictures></div>
           `
           : `
             <header>
               <label>
                 <input type="checkbox" data-enabled="${category}">
-                ${CATEGORY_LABELS[category].toUpperCase()}
+                ${getCategoryLabel(category)}
               </label>
             </header>
             <textarea data-words="${category}" spellcheck="false"></textarea>
@@ -139,7 +162,7 @@ window.GiocoTastiera = window.GiocoTastiera || {};
 
         const upload = document.createElement("label");
         upload.className = "secondary family-upload";
-        upload.textContent = nextDrafts[key] ? "CAMBIA FOTO" : "SCEGLI FOTO";
+        upload.textContent = nextDrafts[key] ? t("ui.familyPicturesChange") : t("ui.familyPicturesChoose");
 
         const fileInput = document.createElement("input");
         fileInput.type = "file";
@@ -162,7 +185,7 @@ window.GiocoTastiera = window.GiocoTastiera || {};
         const clear = document.createElement("button");
         clear.type = "button";
         clear.className = "secondary";
-        clear.textContent = "RIMUOVI";
+        clear.textContent = t("ui.familyPicturesRemove");
         clear.disabled = !nextDrafts[key];
         clear.addEventListener("click", () => {
           delete this.familyPictureDrafts[key];
@@ -173,8 +196,8 @@ window.GiocoTastiera = window.GiocoTastiera || {};
         const status = document.createElement("div");
         status.className = "family-picture-status";
         status.textContent = nextDrafts[key]
-          ? "FOTO LOCALE SALVATA NEL BROWSER"
-          : "NESSUNA FOTO: SVG GENERICO";
+          ? t("ui.familyPicturesSaved")
+          : t("ui.familyPicturesFallback");
 
         row.append(label, actions, status);
         this.familyPicturesEditor.appendChild(row);
@@ -183,7 +206,7 @@ window.GiocoTastiera = window.GiocoTastiera || {};
       if(!words.length){
         const empty = document.createElement("div");
         empty.className = "family-picture-empty";
-        empty.textContent = "AGGIUNGI PRIMA ALMENO UNA VOCE NELLA CATEGORIA FAMIGLIA.";
+        empty.textContent = t("ui.familyPicturesEmpty");
         this.familyPicturesEditor.appendChild(empty);
       }
 
@@ -261,27 +284,27 @@ window.GiocoTastiera = window.GiocoTastiera || {};
       this.pictureCard.classList.add("picture-hidden");
       this.setPictureLoading(false);
       this.picturePlaceholder.hidden = false;
-      this.picturePlaceholder.textContent = "IMMAGINE DISATTIVATA";
+      this.picturePlaceholder.textContent = t("ui.pictureDisabled");
       this.pictureImage.hidden = true;
       this.pictureImage.removeAttribute("src");
       this.pictureSource.textContent = "";
     }
 
     async renderPicture(entry, settings, imageService, requestId, getRequestId){
-      this.pictureTitle.textContent = `IMMAGINE • ${CATEGORY_LABELS[entry.category].toUpperCase()}`;
+      this.pictureTitle.textContent = t("ui.pictureCategoryTitle", { category: getCategoryLabel(entry.category) });
       if(!settings.showPicture){
         this.hidePictureCard();
         return;
       }
 
-      this.showPicturePlaceholder("", "RICERCA IN CORSO", true);
+      this.showPicturePlaceholder("", t("ui.pictureSearching"), true);
 
       try{
         const candidates = await imageService.resolveImageCandidates(entry, settings);
         if(requestId !== getRequestId()) return;
 
         if(!candidates.length){
-          this.showPicturePlaceholder("IMMAGINE NON TROVATA", "NESSUNA IMMAGINE DISPONIBILE");
+          this.showPicturePlaceholder(t("ui.pictureNotFound"), t("ui.noImageAvailable"));
           return;
         }
 
@@ -293,7 +316,7 @@ window.GiocoTastiera = window.GiocoTastiera || {};
             this.setPictureLoading(false);
             this.picturePlaceholder.hidden = true;
             this.pictureImage.hidden = false;
-            this.pictureImage.alt = `Immagine guida per ${entry.word}`;
+            this.pictureImage.alt = t("ui.pictureAlt", { word: entry.word });
             this.pictureImage.src = image.src;
             this.pictureSource.textContent = image.source;
             return;
@@ -301,10 +324,10 @@ window.GiocoTastiera = window.GiocoTastiera || {};
           }
         }
 
-        this.showPicturePlaceholder("IMMAGINE NON TROVATA", "NESSUN FALLBACK DISPONIBILE");
+        this.showPicturePlaceholder(t("ui.pictureNotFound"), t("ui.noFallbackAvailable"));
       }catch{
         if(requestId !== getRequestId()) return;
-        this.showPicturePlaceholder("IMMAGINE NON DISPONIBILE", "ERRORE DI CONNESSIONE");
+        this.showPicturePlaceholder(t("ui.pictureUnavailable"), t("ui.connectionError"));
       }
     }
 
@@ -359,13 +382,13 @@ window.GiocoTastiera = window.GiocoTastiera || {};
     }
 
     showChallenge(challenge){
-      this.challengeLabel.textContent = `Quanto fa ${challenge.a} + ${challenge.b}?`;
+      this.challengeLabel.textContent = t("ui.challengeLabel", { a: challenge.a, b: challenge.b });
       this.challengeInput.value = "";
       this.challengeHint.textContent = "";
     }
 
     showChallengeError(){
-      this.challengeHint.textContent = "CODICE NON CORRETTO";
+      this.challengeHint.textContent = t("ui.invalidCode");
       this.challengeInput.select();
     }
 

@@ -98,7 +98,7 @@ Esempi:
 
 File:
 
-- `musichetta_gioco_leo_python.mp3`
+- `assets/sounds/musichetta_gioco_1.mp3`
 
 Regole attuali:
 - al completamento della parola la musichetta parte dopo 2 secondi

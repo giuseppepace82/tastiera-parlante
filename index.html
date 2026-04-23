@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Tastiera Parlante</title>
+<title data-i18n="ui.title">Tastiera Parlante</title>
 <style>
 :root{
   --bg:#fff6d6;
@@ -474,16 +474,16 @@ canvas{
 <div class="screen">
   <div class="topbar">
     <div class="title-wrap">
-      <h1>TASTIERA PARLANTE</h1>
-      <p class="subtitle">LETTERE, SUONI E PAROLE DA COMPLETARE</p>
+      <h1 data-i18n="ui.title">TASTIERA PARLANTE</h1>
+      <p class="subtitle" data-i18n="ui.subtitle">LETTERE, SUONI E PAROLE DA COMPLETARE</p>
     </div>
-    <button id="setupButton" class="setup-button" type="button" aria-label="Apri setup">⚙</button>
+    <button id="setupButton" class="setup-button" type="button" data-i18n-aria-label="ui.setupButtonAriaLabel" aria-label="Apri setup">⚙</button>
   </div>
 
   <div class="layout">
     <section class="panel game-panel">
-      <div id="word" class="word-grid" aria-label="Parola da leggere"></div>
-      <div id="boxes" class="boxes-grid" aria-label="Caselle della parola"></div>
+      <div id="word" class="word-grid" data-i18n-aria-label="ui.wordAriaLabel" aria-label="Parola da leggere"></div>
+      <div id="boxes" class="boxes-grid" data-i18n-aria-label="ui.boxesAriaLabel" aria-label="Caselle della parola"></div>
 
       <div class="typed-wrap">
         <div id="typed" class="typed-grid" aria-live="polite"></div>
@@ -491,27 +491,27 @@ canvas{
     </section>
 
     <aside id="pictureCard" class="panel picture-card">
-      <div class="pill" id="pictureTitle">IMMAGINE GUIDA</div>
+      <div class="pill" id="pictureTitle" data-i18n="ui.pictureGuide">IMMAGINE GUIDA</div>
       <div id="pictureFrame" class="picture-frame">
         <div id="pictureSpinner" class="picture-spinner" aria-hidden="true"></div>
         <div id="picturePlaceholder" class="picture-placeholder" hidden></div>
         <img id="pictureImage" alt="" hidden>
       </div>
-      <div id="pictureSource" class="picture-source">WEB IN TEMPO REALE</div>
+      <div id="pictureSource" class="picture-source" data-i18n="ui.pictureSourceRealtime">WEB IN TEMPO REALE</div>
     </aside>
   </div>
 </div>
 
 <div id="lockOverlay" class="overlay" aria-hidden="true">
   <div class="modal">
-    <h2>SETUP</h2>
-    <p>Per entrare risolvi la somma.</p>
+    <h2 data-i18n="ui.lockTitle">SETUP</h2>
+    <p data-i18n="ui.lockIntro">Per entrare risolvi la somma.</p>
     <form id="lockForm" class="lock-form">
       <label id="challengeLabel" for="challengeInput">Quanto fa 3 + 4?</label>
       <div class="lock-row">
-        <input id="challengeInput" type="text" inputmode="numeric" autocomplete="off" placeholder="Scrivi il risultato">
-        <button class="primary" type="submit">ENTRA</button>
-        <button id="closeLock" class="secondary" type="button">CHIUDI</button>
+        <input id="challengeInput" type="text" inputmode="numeric" autocomplete="off" data-i18n-placeholder="ui.challengePlaceholder" placeholder="Scrivi il risultato">
+        <button class="primary" type="submit" data-i18n="ui.enter">ENTRA</button>
+        <button id="closeLock" class="secondary" type="button" data-i18n="ui.close">CHIUDI</button>
       </div>
       <div id="challengeHint" class="hint"></div>
     </form>
@@ -520,41 +520,41 @@ canvas{
 
 <div id="settingsOverlay" class="overlay" aria-hidden="true">
   <div class="modal">
-    <h2>SETUP PAROLE</h2>
-    <p>Attiva le categorie che vuoi usare e modifica le parole. Le parole possono essere separate da virgole o righe nuove.</p>
+    <h2 data-i18n="ui.settingsTitle">SETUP PAROLE</h2>
+    <p data-i18n="ui.settingsIntro">Attiva le categorie che vuoi usare e modifica le parole. Le parole possono essere separate da virgole o righe nuove.</p>
 
     <div class="modal-actions">
       <label class="switch-row">
         <input id="showPictureToggle" type="checkbox">
-        MOSTRA IMMAGINE GUIDA
+        <span data-i18n="ui.showPicture">MOSTRA IMMAGINE GUIDA</span>
       </label>
     </div>
 
-    <div class="option-title">POSIZIONE IMMAGINE</div>
+    <div class="option-title" data-i18n="ui.picturePositionTitle">POSIZIONE IMMAGINE</div>
     <div class="option-group">
       <label class="switch-row">
         <input id="picturePositionSide" type="radio" name="picturePosition" value="side">
-        LATERALE
+        <span data-i18n="ui.picturePositionSide">LATERALE</span>
       </label>
       <label class="switch-row">
         <input id="picturePositionBottom" type="radio" name="picturePosition" value="bottom">
-        SOTTO LE PAROLE
+        <span data-i18n="ui.picturePositionBottom">SOTTO LE PAROLE</span>
       </label>
     </div>
 
     <div id="settingsGrid" class="settings-grid"></div>
 
-    <p class="settings-note">Nella categoria famiglia puoi personalizzare le voci e associare a ciascuna una foto locale dal dispositivo. Se una foto non è presente, viene usato l'SVG generico in <code>assets/famiglia/generico.svg</code>. Le altre immagini vengono cercate sul web in tempo reale.</p>
+    <p class="settings-note" data-i18n-html="ui.settingsNoteHtml">Nella categoria famiglia puoi personalizzare le voci e associare a ciascuna una foto locale dal dispositivo. Se una foto non è presente, viene usato l'SVG generico in <code>assets/famiglia/generico.svg</code>. Le altre immagini vengono cercate sul web in tempo reale.</p>
 
     <div class="modal-actions">
-      <button id="saveSettings" class="primary" type="button">SALVA</button>
-      <button id="resetSettings" class="secondary" type="button">RIPRISTINA BASE</button>
-      <button id="closeSettings" class="secondary" type="button">CHIUDI</button>
+      <button id="saveSettings" class="primary" type="button" data-i18n="ui.save">SALVA</button>
+      <button id="resetSettings" class="secondary" type="button" data-i18n="ui.resetBaseline">RIPRISTINA BASE</button>
+      <button id="closeSettings" class="secondary" type="button" data-i18n="ui.close">CHIUDI</button>
     </div>
   </div>
 </div>
 
-<audio id="music" src="musichetta_gioco_leo_python.mp3" preload="metadata"></audio>
+<audio id="music" src="assets/sounds/musichetta_gioco_1.mp3" preload="metadata"></audio>
 
 <script src="js/config/game-config.js"></script>
 <script src="js/model/game-model.js"></script>
