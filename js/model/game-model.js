@@ -33,6 +33,25 @@ window.GiocoTastiera = window.GiocoTastiera || {};
     return Array.from(new Set(cleaned));
   }
 
+  function familyPictureKey(value){
+    return slugify(value).replace(/-/g, "");
+  }
+
+  function normalizeFamilyPictures(rawPictures, familyWords){
+    const next = {};
+    const allowedKeys = new Set(familyWords.map(familyPictureKey).filter(Boolean));
+    if(!rawPictures || typeof rawPictures !== "object") return next;
+
+    for(const [rawKey, rawValue] of Object.entries(rawPictures)){
+      const key = familyPictureKey(rawKey);
+      if(!allowedKeys.has(key)) continue;
+      if(typeof rawValue !== "string" || !rawValue.startsWith("data:image/")) continue;
+      next[key] = rawValue;
+    }
+
+    return next;
+  }
+
   function isVowel(char){
     return "AEIOU".includes(char);
   }
@@ -46,7 +65,8 @@ window.GiocoTastiera = window.GiocoTastiera || {};
       showPicture: true,
       picturePosition: "side",
       enabledCategories: deepClone(DEFAULT_ENABLED),
-      categories: deepClone(DEFAULT_LIBRARY)
+      categories: deepClone(DEFAULT_LIBRARY),
+      familyPictures: {}
     };
   }
 
@@ -65,6 +85,8 @@ window.GiocoTastiera = window.GiocoTastiera || {};
           next.categories[key] = sanitizeWords(raw.categories[key]);
         }
       }
+
+      next.familyPictures = normalizeFamilyPictures(raw.familyPictures, next.categories.famiglia);
     }
 
     if(!CATEGORY_ORDER.some(key => next.enabledCategories[key] && next.categories[key].length)){
@@ -133,7 +155,8 @@ window.GiocoTastiera = window.GiocoTastiera || {};
 
     pickNextWord(){
       const pool = this.buildWordPool();
-      const fallbackPool = pool.length ? pool : [{ category: "famiglia", word: "Mamma" }];
+      const fallbackWord = DEFAULT_LIBRARY.famiglia[0] || DEFAULT_LIBRARY.animali[0] || "Mamma";
+      const fallbackPool = pool.length ? pool : [{ category: "famiglia", word: fallbackWord }];
       let selection = fallbackPool[Math.floor(Math.random() * fallbackPool.length)];
 
       if(fallbackPool.length > 1){
@@ -192,6 +215,7 @@ window.GiocoTastiera = window.GiocoTastiera || {};
     sanitizeWords,
     stripAccents,
     slugify,
+    familyPictureKey,
     colorForChar
   };
 })(window.GiocoTastiera);

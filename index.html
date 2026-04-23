@@ -361,6 +361,53 @@ h1{
   padding:12px;
   background:#fff;
 }
+.settings-inline-note{
+  margin-top:12px;
+  font-size:0.88rem;
+  color:#7f6640;
+}
+.family-pictures-editor{
+  display:flex;
+  flex-direction:column;
+  gap:10px;
+  margin-top:12px;
+}
+.family-picture-row{
+  border:2px solid rgba(240,213,139,0.95);
+  border-radius:16px;
+  padding:12px;
+  background:#fffdf6;
+}
+.family-picture-name{
+  font-weight:900;
+  letter-spacing:0.06em;
+  text-transform:uppercase;
+  color:#5d4720;
+}
+.family-picture-actions{
+  display:flex;
+  flex-wrap:wrap;
+  gap:10px;
+  margin-top:10px;
+}
+.family-upload{
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+}
+.family-picture-status,
+.family-picture-empty{
+  margin-top:10px;
+  font-size:0.85rem;
+  font-weight:700;
+  letter-spacing:0.05em;
+  text-transform:uppercase;
+  color:#8f6c2f;
+}
+.secondary:disabled{
+  opacity:0.45;
+  cursor:not-allowed;
+}
 .settings-note{
   margin-top:14px;
   font-size:0.92rem;
@@ -497,7 +544,7 @@ canvas{
 
     <div id="settingsGrid" class="settings-grid"></div>
 
-    <p class="settings-note">Le immagini della categoria famiglia vengono lette dalla cartella locale <code>assets/famiglia</code>. Le altre immagini vengono cercate sul web in tempo reale. Puoi anche scegliere se mostrare l'immagine lateralmente oppure sotto alle parole.</p>
+    <p class="settings-note">Nella categoria famiglia puoi personalizzare le voci e associare a ciascuna una foto locale dal dispositivo. Se una foto non è presente, viene usato l'SVG generico in <code>assets/famiglia/generico.svg</code>. Le altre immagini vengono cercate sul web in tempo reale.</p>
 
     <div class="modal-actions">
       <button id="saveSettings" class="primary" type="button">SALVA</button>

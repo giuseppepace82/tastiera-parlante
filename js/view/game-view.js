@@ -2,7 +2,7 @@ window.GiocoTastiera = window.GiocoTastiera || {};
 
 (function(ns){
   const { CATEGORY_LABELS, CATEGORY_ORDER, CELEBRATION_MS } = ns.config;
-  const { colorForChar, stripAccents } = ns.model;
+  const { colorForChar, familyPictureKey, sanitizeWords: sanitizeWordList, stripAccents } = ns.model;
 
   class GameView {
     constructor(){
@@ -36,6 +36,9 @@ window.GiocoTastiera = window.GiocoTastiera || {};
       this.fxCanvas = document.getElementById("fx");
       this.fxCtx = this.fxCanvas.getContext("2d");
       this.fxState = null;
+      this.familyPictureDrafts = {};
+      this.familyWordsInput = null;
+      this.familyPicturesEditor = null;
 
       this.buildSettingsEditor();
       this.resizeCanvas();
@@ -46,17 +49,145 @@ window.GiocoTastiera = window.GiocoTastiera || {};
       for(const category of CATEGORY_ORDER){
         const card = document.createElement("section");
         card.className = "settings-card";
-        card.innerHTML = `
-          <header>
-            <label>
-              <input type="checkbox" data-enabled="${category}">
-              ${CATEGORY_LABELS[category].toUpperCase()}
-            </label>
-          </header>
-          <textarea data-words="${category}" spellcheck="false"></textarea>
-        `;
+        card.innerHTML = category === "famiglia"
+          ? `
+            <header>
+              <label>
+                <input type="checkbox" data-enabled="${category}">
+                ${CATEGORY_LABELS[category].toUpperCase()}
+              </label>
+            </header>
+            <textarea data-words="${category}" spellcheck="false"></textarea>
+            <p class="settings-inline-note">Per ogni voce della famiglia puoi scegliere una foto dal dispositivo. Se non imposti una foto, verrà usato l'SVG generico.</p>
+            <div class="family-pictures-editor" data-family-pictures></div>
+          `
+          : `
+            <header>
+              <label>
+                <input type="checkbox" data-enabled="${category}">
+                ${CATEGORY_LABELS[category].toUpperCase()}
+              </label>
+            </header>
+            <textarea data-words="${category}" spellcheck="false"></textarea>
+          `;
         this.settingsGrid.appendChild(card);
       }
+
+      this.familyWordsInput = this.settingsGrid.querySelector('[data-words="famiglia"]');
+      this.familyPicturesEditor = this.settingsGrid.querySelector("[data-family-pictures]");
+      if(this.familyWordsInput){
+        this.familyWordsInput.addEventListener("input", () => this.syncFamilyPicturesEditor());
+      }
+    }
+
+    readLocalImage(file){
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => {
+          if(typeof reader.result === "string"){
+            resolve(reader.result);
+            return;
+          }
+          reject(new Error("invalid-image"));
+        };
+        reader.onerror = () => reject(new Error("file-read-error"));
+        reader.readAsDataURL(file);
+      });
+    }
+
+    getFamilyWordsFromEditor(){
+      return sanitizeWordList(this.familyWordsInput ? this.familyWordsInput.value : []);
+    }
+
+    readFamilyPictures(words){
+      const next = {};
+      for(const word of words){
+        const key = familyPictureKey(word);
+        const image = this.familyPictureDrafts[key];
+        if(typeof image === "string" && image.startsWith("data:image/")){
+          next[key] = image;
+        }
+      }
+      return next;
+    }
+
+    syncFamilyPicturesEditor(){
+      this.renderFamilyPicturesEditor(this.getFamilyWordsFromEditor());
+    }
+
+    renderFamilyPicturesEditor(words){
+      if(!this.familyPicturesEditor) return;
+
+      const nextDrafts = {};
+      this.familyPicturesEditor.innerHTML = "";
+
+      for(const word of words){
+        const key = familyPictureKey(word);
+        if(this.familyPictureDrafts[key]){
+          nextDrafts[key] = this.familyPictureDrafts[key];
+        }
+
+        const row = document.createElement("div");
+        row.className = "family-picture-row";
+
+        const label = document.createElement("div");
+        label.className = "family-picture-name";
+        label.textContent = word.toUpperCase();
+
+        const actions = document.createElement("div");
+        actions.className = "family-picture-actions";
+
+        const upload = document.createElement("label");
+        upload.className = "secondary family-upload";
+        upload.textContent = nextDrafts[key] ? "CAMBIA FOTO" : "SCEGLI FOTO";
+
+        const fileInput = document.createElement("input");
+        fileInput.type = "file";
+        fileInput.accept = "image/*";
+        fileInput.hidden = true;
+        fileInput.addEventListener("change", async () => {
+          const file = fileInput.files && fileInput.files[0];
+          if(!file) return;
+
+          try{
+            this.familyPictureDrafts[key] = await this.readLocalImage(file);
+            this.renderFamilyPicturesEditor(this.getFamilyWordsFromEditor());
+          }catch{
+          }
+        });
+
+        upload.appendChild(fileInput);
+        actions.appendChild(upload);
+
+        const clear = document.createElement("button");
+        clear.type = "button";
+        clear.className = "secondary";
+        clear.textContent = "RIMUOVI";
+        clear.disabled = !nextDrafts[key];
+        clear.addEventListener("click", () => {
+          delete this.familyPictureDrafts[key];
+          this.renderFamilyPicturesEditor(this.getFamilyWordsFromEditor());
+        });
+        actions.appendChild(clear);
+
+        const status = document.createElement("div");
+        status.className = "family-picture-status";
+        status.textContent = nextDrafts[key]
+          ? "FOTO LOCALE SALVATA NEL BROWSER"
+          : "NESSUNA FOTO: SVG GENERICO";
+
+        row.append(label, actions, status);
+        this.familyPicturesEditor.appendChild(row);
+      }
+
+      if(!words.length){
+        const empty = document.createElement("div");
+        empty.className = "family-picture-empty";
+        empty.textContent = "AGGIUNGI PRIMA ALMENO UNA VOCE NELLA CATEGORIA FAMIGLIA.";
+        this.familyPicturesEditor.appendChild(empty);
+      }
+
+      this.familyPictureDrafts = nextDrafts;
     }
 
     applyPictureLayout(settings){
@@ -146,7 +277,7 @@ window.GiocoTastiera = window.GiocoTastiera || {};
       this.showPicturePlaceholder("", "RICERCA IN CORSO", true);
 
       try{
-        const candidates = await imageService.resolveImageCandidates(entry);
+        const candidates = await imageService.resolveImageCandidates(entry, settings);
         if(requestId !== getRequestId()) return;
 
         if(!candidates.length){
@@ -178,6 +309,7 @@ window.GiocoTastiera = window.GiocoTastiera || {};
     }
 
     fillSettingsEditor(settings){
+      this.familyPictureDrafts = Object.assign({}, settings.familyPictures || {});
       this.showPictureToggle.checked = settings.showPicture;
       this.picturePositionSide.checked = settings.picturePosition !== "bottom";
       this.picturePositionBottom.checked = settings.picturePosition === "bottom";
@@ -187,6 +319,7 @@ window.GiocoTastiera = window.GiocoTastiera || {};
         if(enabledInput) enabledInput.checked = settings.enabledCategories[category];
         if(wordsInput) wordsInput.value = settings.categories[category].join(", ");
       }
+      this.syncFamilyPicturesEditor();
     }
 
     readSettingsEditor(defaultSettingsFactory, sanitizeWords, defaultLibrary){
@@ -205,6 +338,8 @@ window.GiocoTastiera = window.GiocoTastiera || {};
         next.enabledCategories.famiglia = true;
         next.categories.famiglia = sanitizeWords(defaultLibrary.famiglia);
       }
+
+      next.familyPictures = this.readFamilyPictures(next.categories.famiglia);
 
       return next;
     }

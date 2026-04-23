@@ -1,8 +1,0 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 600">
-  <rect width="600" height="600" rx="40" fill="#FFF6D6"/>
-  <circle cx="300" cy="162" r="82" fill="#FFD7A8"/>
-  <path d="M202 175c20-84 173-112 207-19 9 24 9 40 5 57-31-17-70-25-118-25-37 0-71 5-98 16-7-10-8-20 4-29z" fill="#5D3924"/>
-  <path d="M168 450c11-112 93-195 132-195 37 0 118 78 132 195z" fill="#FF8C42"/>
-  <rect x="122" y="456" width="356" height="78" rx="28" fill="#FFD447"/>
-  <text x="300" y="507" text-anchor="middle" font-family="Trebuchet MS, sans-serif" font-size="52" font-weight="700" fill="#6B4A11">MAMMA</text>
-</svg>

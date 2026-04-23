@@ -1,0 +1,11 @@
+<svg width="640" height="640" viewBox="0 0 640 640" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="640" height="640" rx="72" fill="#FFF7D8"/>
+  <circle cx="320" cy="236" r="120" fill="#FFD447"/>
+  <circle cx="320" cy="210" r="78" fill="#FFFDF7"/>
+  <path d="M176 514C176 434.471 240.471 370 320 370C399.529 370 464 434.471 464 514V524H176V514Z" fill="#FFB347"/>
+  <circle cx="292" cy="194" r="10" fill="#5D4720"/>
+  <circle cx="348" cy="194" r="10" fill="#5D4720"/>
+  <path d="M286 238C298 252 342 252 354 238" stroke="#5D4720" stroke-width="14" stroke-linecap="round"/>
+  <path d="M246 82C264.667 62 289.867 52 321.6 52C353.333 52 378.133 62 396 82" stroke="#FF8C42" stroke-width="22" stroke-linecap="round"/>
+  <text x="320" y="584" text-anchor="middle" fill="#8F6C2F" font-family="Trebuchet MS, Comic Sans MS, sans-serif" font-size="38" font-weight="700" letter-spacing="3">FAMIGLIA</text>
+</svg>

@@ -4,11 +4,11 @@ window.GiocoTastiera = window.GiocoTastiera || {};
   const {
     CATEGORY_LABELS,
     ARASAAC_IMAGE_SIZE,
-    FAMILY_IMAGE_MAP,
+    FAMILY_FALLBACK_IMAGE,
     IMAGE_QUERY_MAP,
     MAX_REMOTE_IMAGE_CANDIDATES
   } = ns.config;
-  const { slugify, stripAccents } = ns.model;
+  const { familyPictureKey, slugify, stripAccents } = ns.model;
 
   class ImageService {
     constructor(){
@@ -138,10 +138,18 @@ window.GiocoTastiera = window.GiocoTastiera || {};
       return deduped;
     }
 
-    async resolveImageCandidates(entry){
+    async resolveImageCandidates(entry, settings){
       if(entry.category === "famiglia"){
-        const localPath = FAMILY_IMAGE_MAP[slugify(entry.word).replace(/-/g, "")];
-        return localPath ? [{ src: localPath, source: "CARTELLA LOCALE • FAMIGLIA", sourceKind: "local" }] : [];
+        const key = familyPictureKey(entry.word);
+        const localPhoto = settings && settings.familyPictures ? settings.familyPictures[key] : "";
+        const candidates = [];
+
+        if(localPhoto){
+          candidates.push({ src: localPhoto, source: "FOTO LOCALE • FAMIGLIA", sourceKind: "local" });
+        }
+
+        candidates.push({ src: FAMILY_FALLBACK_IMAGE, source: "SVG GENERICO • FAMIGLIA", sourceKind: "fallback" });
+        return candidates;
       }
       return this.fetchRealtimeImage(entry);
     }

@@ -14,7 +14,7 @@ window.GiocoTastiera.config = {
   },
 
   DEFAULT_LIBRARY: {
-    famiglia: ["Leo", "Elisa", "Mamma", "Lory", "Papà"],
+    famiglia: ["Mamma", "Papà", "Nonna", "Nonno", "Zia"],
     animali: ["Gatto", "Cane", "Pesce", "Orso", "Lupo"],
     cibo: ["Mela", "Pane", "Pera", "Pizza", "Riso"],
     divertimento: ["Palla", "Bici", "Lego", "Libro", "Gioco"],
@@ -42,15 +42,9 @@ window.GiocoTastiera.config = {
     natura: { sole: "sole", luna: "luna", fiore: "fiore", mare: "mare", nuvola: "nuvola" }
   },
 
-  FAMILY_IMAGE_MAP: {
-    leo: "assets/famiglia/leo.svg",
-    elisa: "assets/famiglia/elisa.svg",
-    mamma: "assets/famiglia/mamma.svg",
-    lory: "assets/famiglia/lory.svg",
-    papa: "assets/famiglia/papa.svg"
-  },
+  FAMILY_FALLBACK_IMAGE: "assets/famiglia/generico.svg",
 
-  STORAGE_KEY: "gioco-tastiera-settings-v2",
+  STORAGE_KEY: "tastiera-parlante-settings-v3",
   MUSIC_START_DELAY_MS: 2000,
   CELEBRATION_MS: 6000,
   FADE_IN_MS: 800,
