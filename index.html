@@ -1,0 +1,520 @@
+<!doctype html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Tastiera Parlante</title>
+<style>
+:root{
+  --bg:#fff6d6;
+  --card:#fffdf7;
+  --ink:#2f2a1f;
+  --accent:#ffd447;
+  --accent-2:#ff8c42;
+  --vowel:#ff00ff;
+  --consonant:#32cd32;
+  --line:#f0d58b;
+  --shadow:0 18px 45px rgba(113,84,17,0.12);
+}
+*{ box-sizing:border-box; }
+body{
+  margin:0;
+  min-height:100vh;
+  background:
+    radial-gradient(circle at top left, rgba(255,255,255,0.9), transparent 32%),
+    radial-gradient(circle at bottom right, rgba(255,212,71,0.55), transparent 28%),
+    linear-gradient(180deg, #fff8dc 0%, #fff2bd 100%);
+  color:var(--ink);
+  font-family:"Trebuchet MS", "Comic Sans MS", sans-serif;
+  text-align:center;
+}
+button, input, textarea{
+  font:inherit;
+}
+.screen{
+  position:relative;
+  width:min(1120px, calc(100% - 28px));
+  margin:0 auto;
+  padding:22px 0 40px;
+}
+.topbar{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:16px;
+  margin-bottom:14px;
+}
+.title-wrap{
+  text-align:left;
+}
+h1{
+  margin:0;
+  font-size:clamp(2rem, 5vw, 3.2rem);
+  letter-spacing:0.08em;
+}
+.subtitle{
+  margin:6px 0 0;
+  font-size:0.95rem;
+  letter-spacing:0.1em;
+  color:#7b6642;
+}
+.pill{
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  padding:10px 16px;
+  border-radius:999px;
+  background:rgba(255,255,255,0.8);
+  border:2px solid rgba(122,102,66,0.18);
+  font-weight:700;
+  letter-spacing:0.08em;
+  text-transform:uppercase;
+}
+.setup-button{
+  width:52px;
+  height:52px;
+  border:none;
+  border-radius:50%;
+  background:linear-gradient(180deg, #fffef9 0%, #ffe8a1 100%);
+  box-shadow:var(--shadow);
+  cursor:pointer;
+  font-size:1.6rem;
+}
+.setup-button:hover{
+  transform:translateY(-1px);
+}
+.layout{
+  display:grid;
+  grid-template-columns:minmax(320px, 1.2fr) minmax(280px, 0.8fr);
+  gap:24px;
+  align-items:start;
+}
+.layout.picture-bottom{
+  grid-template-columns:1fr;
+}
+.layout.picture-bottom .picture-card{
+  width:100%;
+  max-width:860px;
+  margin:0 auto;
+}
+.layout.picture-bottom .picture-frame{
+  min-height:280px;
+}
+.panel{
+  background:rgba(255,253,247,0.88);
+  border:3px solid rgba(255,212,71,0.42);
+  border-radius:28px;
+  box-shadow:var(--shadow);
+  padding:24px;
+  backdrop-filter:blur(6px);
+}
+.picture-card{
+  min-height:100%;
+  display:flex;
+  flex-direction:column;
+  gap:14px;
+}
+.picture-frame{
+  flex:1;
+  min-height:320px;
+  border-radius:24px;
+  border:3px dashed rgba(255,140,66,0.35);
+  background:linear-gradient(180deg, #fffef7 0%, #fff7d8 100%);
+  overflow:hidden;
+  position:relative;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+}
+.picture-frame img{
+  width:100%;
+  height:100%;
+  object-fit:cover;
+  display:block;
+}
+.picture-placeholder{
+  padding:24px;
+  font-size:1.1rem;
+  font-weight:700;
+  color:#7b6642;
+  letter-spacing:0.08em;
+  text-transform:uppercase;
+}
+.picture-spinner{
+  width:56px;
+  height:56px;
+  border-radius:50%;
+  border:6px solid rgba(255, 212, 71, 0.28);
+  border-top-color:#ff8c42;
+  animation:spin 0.9s linear infinite;
+  position:absolute;
+  top:50%;
+  left:50%;
+  transform:translate(-50%, -50%);
+  display:none;
+}
+.picture-spinner.visible{
+  display:block;
+}
+.picture-source{
+  font-size:0.9rem;
+  letter-spacing:0.08em;
+  text-transform:uppercase;
+  color:#8f6c2f;
+}
+.picture-frame.loading .picture-placeholder{
+  padding-top:96px;
+}
+.picture-frame.loading img{
+  opacity:0.16;
+}
+.picture-hidden .picture-frame,
+.picture-hidden .picture-source{
+  display:none;
+}
+.game-panel{
+  display:flex;
+  flex-direction:column;
+  gap:18px;
+}
+.word-grid,
+.boxes-grid,
+.typed-grid{
+  display:flex;
+  justify-content:center;
+  flex-wrap:wrap;
+  gap:12px;
+}
+.letter,
+.box,
+.typed-chip{
+  width:74px;
+  height:74px;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  border-radius:18px;
+  font-size:2.2rem;
+  font-weight:900;
+  text-transform:uppercase;
+  letter-spacing:0.03em;
+}
+.letter{
+  color:#fff;
+  box-shadow:0 10px 24px rgba(0,0,0,0.12);
+}
+.box{
+  background:#fff;
+  border:3px solid transparent;
+  box-shadow:inset 0 0 0 2px rgba(122,102,66,0.06);
+}
+.box.active{
+  border-color:yellow;
+}
+.typed-wrap{
+  min-height:96px;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  padding:18px;
+  border-radius:24px;
+  background:linear-gradient(180deg, rgba(255,255,255,0.86) 0%, rgba(255,248,220,0.92) 100%);
+  border:2px dashed rgba(255,212,71,0.6);
+}
+.typed-chip{
+  width:62px;
+  height:62px;
+  color:#fff;
+  box-shadow:0 10px 18px rgba(0,0,0,0.1);
+}
+.overlay{
+  position:fixed;
+  inset:0;
+  display:none;
+  align-items:center;
+  justify-content:center;
+  padding:18px;
+  background:rgba(47,42,31,0.36);
+  z-index:20;
+}
+.overlay.open{
+  display:flex;
+}
+.modal{
+  width:min(920px, 100%);
+  max-height:min(90vh, 900px);
+  overflow:auto;
+  border-radius:28px;
+  background:#fffdf7;
+  box-shadow:0 24px 70px rgba(32,23,9,0.28);
+  padding:24px;
+  text-align:left;
+}
+.modal h2{
+  margin:0 0 8px;
+  font-size:1.7rem;
+  letter-spacing:0.06em;
+  text-transform:uppercase;
+}
+.modal p{
+  margin:0;
+  color:#7f6640;
+}
+.modal-actions{
+  display:flex;
+  flex-wrap:wrap;
+  gap:12px;
+  margin-top:20px;
+}
+.option-title{
+  margin-top:18px;
+  font-weight:900;
+  letter-spacing:0.08em;
+  text-transform:uppercase;
+  color:#5d4720;
+}
+.option-group{
+  display:flex;
+  flex-wrap:wrap;
+  gap:18px;
+  margin-top:14px;
+}
+.primary,
+.secondary{
+  border:none;
+  border-radius:16px;
+  padding:12px 18px;
+  font-weight:900;
+  letter-spacing:0.06em;
+  text-transform:uppercase;
+  cursor:pointer;
+}
+.primary{
+  background:linear-gradient(180deg, #ffd447 0%, #ffb347 100%);
+  color:#4a3510;
+}
+.secondary{
+  background:#fff5d2;
+  color:#765725;
+}
+.lock-form{
+  display:flex;
+  flex-direction:column;
+  gap:14px;
+  margin-top:20px;
+}
+.lock-row{
+  display:flex;
+  gap:12px;
+  flex-wrap:wrap;
+}
+.lock-row input{
+  flex:1;
+  min-width:180px;
+  border:2px solid var(--line);
+  border-radius:14px;
+  padding:12px 14px;
+  text-transform:uppercase;
+}
+.hint{
+  min-height:24px;
+  font-weight:700;
+  color:#a1413d;
+  text-transform:uppercase;
+  letter-spacing:0.06em;
+}
+.settings-grid{
+  display:grid;
+  grid-template-columns:repeat(auto-fit, minmax(240px, 1fr));
+  gap:16px;
+  margin-top:22px;
+}
+.settings-card{
+  border:2px solid rgba(255,212,71,0.55);
+  border-radius:22px;
+  padding:16px;
+  background:linear-gradient(180deg, #fffef8 0%, #fff6d8 100%);
+}
+.settings-card header{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:12px;
+  margin-bottom:12px;
+}
+.settings-card label,
+.switch-row{
+  display:flex;
+  align-items:center;
+  gap:10px;
+  font-weight:800;
+  text-transform:uppercase;
+  letter-spacing:0.05em;
+  color:#5d4720;
+}
+.settings-card textarea{
+  width:100%;
+  min-height:130px;
+  border:2px solid rgba(240,213,139,0.95);
+  border-radius:16px;
+  resize:vertical;
+  padding:12px;
+  background:#fff;
+}
+.settings-note{
+  margin-top:14px;
+  font-size:0.92rem;
+  color:#7f6640;
+}
+.sr-only{
+  position:absolute;
+  width:1px;
+  height:1px;
+  padding:0;
+  margin:-1px;
+  overflow:hidden;
+  clip:rect(0,0,0,0);
+  white-space:nowrap;
+  border:0;
+}
+canvas{
+  position:fixed;
+  inset:0;
+  pointer-events:none;
+  z-index:8;
+}
+@keyframes spin{
+  to { transform:translate(-50%, -50%) rotate(360deg); }
+}
+@media (max-width: 900px){
+  .layout{
+    grid-template-columns:1fr;
+  }
+  .picture-card{
+    order:-1;
+  }
+}
+@media (max-width: 560px){
+  .screen{
+    width:min(100% - 16px, 100%);
+    padding-top:16px;
+  }
+  .panel,
+  .modal{
+    padding:18px;
+  }
+  .letter,
+  .box{
+    width:58px;
+    height:58px;
+    font-size:1.8rem;
+    border-radius:14px;
+  }
+  .typed-chip{
+    width:52px;
+    height:52px;
+    font-size:1.7rem;
+  }
+  .picture-frame{
+    min-height:240px;
+  }
+}
+</style>
+</head>
+<body>
+<canvas id="fx"></canvas>
+
+<div class="screen">
+  <div class="topbar">
+    <div class="title-wrap">
+      <h1>TASTIERA PARLANTE</h1>
+      <p class="subtitle">LETTERE, SUONI E PAROLE DA COMPLETARE</p>
+    </div>
+    <button id="setupButton" class="setup-button" type="button" aria-label="Apri setup">⚙</button>
+  </div>
+
+  <div class="layout">
+    <section class="panel game-panel">
+      <div id="word" class="word-grid" aria-label="Parola da leggere"></div>
+      <div id="boxes" class="boxes-grid" aria-label="Caselle della parola"></div>
+
+      <div class="typed-wrap">
+        <div id="typed" class="typed-grid" aria-live="polite"></div>
+      </div>
+    </section>
+
+    <aside id="pictureCard" class="panel picture-card">
+      <div class="pill" id="pictureTitle">IMMAGINE GUIDA</div>
+      <div id="pictureFrame" class="picture-frame">
+        <div id="pictureSpinner" class="picture-spinner" aria-hidden="true"></div>
+        <div id="picturePlaceholder" class="picture-placeholder" hidden></div>
+        <img id="pictureImage" alt="" hidden>
+      </div>
+      <div id="pictureSource" class="picture-source">WEB IN TEMPO REALE</div>
+    </aside>
+  </div>
+</div>
+
+<div id="lockOverlay" class="overlay" aria-hidden="true">
+  <div class="modal">
+    <h2>SETUP</h2>
+    <p>Per entrare risolvi la somma.</p>
+    <form id="lockForm" class="lock-form">
+      <label id="challengeLabel" for="challengeInput">Quanto fa 3 + 4?</label>
+      <div class="lock-row">
+        <input id="challengeInput" type="text" inputmode="numeric" autocomplete="off" placeholder="Scrivi il risultato">
+        <button class="primary" type="submit">ENTRA</button>
+        <button id="closeLock" class="secondary" type="button">CHIUDI</button>
+      </div>
+      <div id="challengeHint" class="hint"></div>
+    </form>
+  </div>
+</div>
+
+<div id="settingsOverlay" class="overlay" aria-hidden="true">
+  <div class="modal">
+    <h2>SETUP PAROLE</h2>
+    <p>Attiva le categorie che vuoi usare e modifica le parole. Le parole possono essere separate da virgole o righe nuove.</p>
+
+    <div class="modal-actions">
+      <label class="switch-row">
+        <input id="showPictureToggle" type="checkbox">
+        MOSTRA IMMAGINE GUIDA
+      </label>
+    </div>
+
+    <div class="option-title">POSIZIONE IMMAGINE</div>
+    <div class="option-group">
+      <label class="switch-row">
+        <input id="picturePositionSide" type="radio" name="picturePosition" value="side">
+        LATERALE
+      </label>
+      <label class="switch-row">
+        <input id="picturePositionBottom" type="radio" name="picturePosition" value="bottom">
+        SOTTO LE PAROLE
+      </label>
+    </div>
+
+    <div id="settingsGrid" class="settings-grid"></div>
+
+    <p class="settings-note">Le immagini della categoria famiglia vengono lette dalla cartella locale <code>assets/famiglia</code>. Le altre immagini vengono cercate sul web in tempo reale. Puoi anche scegliere se mostrare l'immagine lateralmente oppure sotto alle parole.</p>
+
+    <div class="modal-actions">
+      <button id="saveSettings" class="primary" type="button">SALVA</button>
+      <button id="resetSettings" class="secondary" type="button">RIPRISTINA BASE</button>
+      <button id="closeSettings" class="secondary" type="button">CHIUDI</button>
+    </div>
+  </div>
+</div>
+
+<audio id="music" src="musichetta_gioco_leo_python.mp3" preload="metadata"></audio>
+
+<script src="js/config/game-config.js"></script>
+<script src="js/model/game-model.js"></script>
+<script src="js/services/image-service.js"></script>
+<script src="js/services/speech-service.js"></script>
+<script src="js/view/game-view.js"></script>
+<script src="js/controller/game-controller.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>
