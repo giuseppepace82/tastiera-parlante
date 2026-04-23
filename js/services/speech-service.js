@@ -8,6 +8,7 @@ window.GiocoTastiera = window.GiocoTastiera || {};
     constructor(){
       this.speechEnabled = false;
       this.italianVoice = null;
+      this.volume = 1;
       this.loadItalianVoice = this.loadItalianVoice.bind(this);
       this.loadItalianVoice();
       speechSynthesis.addEventListener("voiceschanged", this.loadItalianVoice);
@@ -15,6 +16,11 @@ window.GiocoTastiera = window.GiocoTastiera || {};
 
     enable(){
       this.speechEnabled = true;
+    }
+
+    setVolume(volume){
+      const parsed = Number(volume);
+      this.volume = Number.isFinite(parsed) ? Math.min(Math.max(parsed, 0), 1) : 1;
     }
 
     loadItalianVoice(){
@@ -58,7 +64,7 @@ window.GiocoTastiera = window.GiocoTastiera || {};
       const utterance = new SpeechSynthesisUtterance(text);
       utterance.lang = options.lang || "it-IT";
       if(this.italianVoice) utterance.voice = this.italianVoice;
-      utterance.volume = 1;
+      utterance.volume = options.volume ?? this.volume;
       utterance.rate = options.rate ?? 0.72;
       utterance.pitch = options.pitch ?? 0.95;
       speechSynthesis.cancel();

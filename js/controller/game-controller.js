@@ -2,6 +2,7 @@ window.GiocoTastiera = window.GiocoTastiera || {};
 
 (function(ns){
   const {
+    BASE_VOLUME_PERCENT,
     CELEBRATION_MS,
     DEFAULT_LIBRARY,
     FADE_IN_MS,
@@ -19,7 +20,13 @@ window.GiocoTastiera = window.GiocoTastiera || {};
       this.imageService = new ImageService();
       this.speechService = new SpeechService();
       this.celebrationTimers = [];
+      this.celebrationActive = false;
       this.currentImageRequest = 0;
+      this.audioFadeFrame = 0;
+      this.audioContext = null;
+      this.musicGainNode = null;
+
+      this.setupMusicGain();
 
       document.addEventListener("click", this.enableSpeechOnce, { once: true });
       document.addEventListener("keydown", this.enableSpeechOnce, { once: true });
@@ -28,13 +35,61 @@ window.GiocoTastiera = window.GiocoTastiera || {};
     enableSpeechOnce = () => {
       this.model.speechEnabled = true;
       this.speechService.enable();
+      this.resumeAudioContext();
     };
 
     init(){
       this.bindEvents();
+      this.applyAudioSettings();
       this.view.renderTypedBar(this.model.insertedLetters);
       this.view.applyPictureLayout(this.model.settings);
       this.newWord();
+    }
+
+    setupMusicGain(){
+      const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+      if(!AudioContextClass) return;
+
+      try{
+        this.audioContext = new AudioContextClass();
+        const sourceNode = this.audioContext.createMediaElementSource(this.view.audio);
+        this.musicGainNode = this.audioContext.createGain();
+        this.musicGainNode.gain.value = 0;
+        sourceNode.connect(this.musicGainNode);
+        this.musicGainNode.connect(this.audioContext.destination);
+        this.view.audio.volume = 1;
+      }catch{
+        this.audioContext = null;
+        this.musicGainNode = null;
+      }
+    }
+
+    resumeAudioContext(){
+      if(this.audioContext && this.audioContext.state === "suspended"){
+        this.audioContext.resume().catch(() => {});
+      }
+    }
+
+    getSpeechOutputVolume(){
+      return Math.min(this.model.settings.speechVolume / BASE_VOLUME_PERCENT, 1);
+    }
+
+    getMusicOutputVolume(){
+      return this.model.settings.celebrationMusicVolume / BASE_VOLUME_PERCENT;
+    }
+
+    setMusicLevel(level){
+      const safeLevel = Math.max(Number(level) || 0, 0);
+      if(this.musicGainNode){
+        this.musicGainNode.gain.value = safeLevel;
+        this.view.audio.volume = 1;
+        return;
+      }
+      this.view.audio.volume = Math.min(safeLevel, 1);
+    }
+
+    applyAudioSettings(){
+      this.speechService.setVolume(this.getSpeechOutputVolume());
     }
 
     bindEvents(){
@@ -64,6 +119,7 @@ window.GiocoTastiera = window.GiocoTastiera || {};
       this.view.saveSettings.addEventListener("click", () => {
         const nextSettings = this.view.readSettingsEditor(createDefaultSettings, sanitizeWords, DEFAULT_LIBRARY);
         this.model.updateSettings(nextSettings);
+        this.applyAudioSettings();
         this.view.applyPictureLayout(this.model.settings);
         this.view.closeOverlay(this.view.settingsOverlay);
         this.newWord();
@@ -71,6 +127,7 @@ window.GiocoTastiera = window.GiocoTastiera || {};
 
       this.view.resetSettings.addEventListener("click", () => {
         this.model.resetSettings();
+        this.applyAudioSettings();
         this.view.applyPictureLayout(this.model.settings);
         this.view.fillSettingsEditor(this.model.settings);
       });
@@ -79,11 +136,29 @@ window.GiocoTastiera = window.GiocoTastiera || {};
         this.view.closeOverlay(this.view.settingsOverlay);
       });
 
+      window.addEventListener("click", this.onCelebrationClick, true);
       window.addEventListener("keydown", this.onKeyDown);
       window.addEventListener("resize", () => this.view.resizeCanvas());
     }
 
+    onCelebrationClick = (event) => {
+      if(!this.celebrationActive || this.view.isSetupOpen() || !this.model.settings.allowCelebrationSkip) return;
+      event.preventDefault();
+      event.stopPropagation();
+      this.skipCelebration();
+    };
+
     onKeyDown = (event) => {
+      if(
+        this.celebrationActive &&
+        this.model.settings.allowCelebrationSkip &&
+        (event.code === "Space" || event.key === " " || event.key === "Spacebar")
+      ){
+        event.preventDefault();
+        this.skipCelebration();
+        return;
+      }
+
       if(this.view.isSetupOpen()) return;
       if(!this.model.currentEntry || this.model.currentIndex >= this.model.normalizedWord.length) return;
 
@@ -117,19 +192,27 @@ window.GiocoTastiera = window.GiocoTastiera || {};
       this.celebrationTimers = [];
     }
 
+    clearAudioFade(){
+      if(this.audioFadeFrame){
+        cancelAnimationFrame(this.audioFadeFrame);
+        this.audioFadeFrame = 0;
+      }
+    }
+
     fadeVolume(from, to, duration, done){
-      const audio = this.view.audio;
       const start = performance.now();
+      this.clearAudioFade();
       const tick = (now) => {
         const progress = Math.min((now - start) / duration, 1);
-        audio.volume = from + (to - from) * progress;
+        this.setMusicLevel(from + (to - from) * progress);
         if(progress < 1){
-          requestAnimationFrame(tick);
+          this.audioFadeFrame = requestAnimationFrame(tick);
           return;
         }
+        this.audioFadeFrame = 0;
         if(done) done();
       };
-      requestAnimationFrame(tick);
+      this.audioFadeFrame = requestAnimationFrame(tick);
     }
 
     playMusic(){
@@ -139,15 +222,17 @@ window.GiocoTastiera = window.GiocoTastiera || {};
       const maxStart = hasDuration ? Math.max(audio.duration - clipSeconds, 0) : 0;
       const start = hasDuration ? Math.random() * maxStart : 0;
 
+      this.resumeAudioContext();
       audio.pause();
       audio.currentTime = start;
-      audio.volume = 0;
+      this.setMusicLevel(0);
       audio.play().catch(() => {});
-      this.fadeVolume(0, 1, FADE_IN_MS);
+      this.fadeVolume(0, this.getMusicOutputVolume(), FADE_IN_MS);
 
       const fadeOutDelay = Math.max(CELEBRATION_MS - FADE_OUT_MS, 0);
       const fadeOutTimer = setTimeout(() => {
-        this.fadeVolume(audio.volume, 0, FADE_OUT_MS, () => {
+        const currentLevel = this.musicGainNode ? this.musicGainNode.gain.value : audio.volume;
+        this.fadeVolume(currentLevel, 0, FADE_OUT_MS, () => {
           audio.pause();
         });
       }, fadeOutDelay);
@@ -156,17 +241,27 @@ window.GiocoTastiera = window.GiocoTastiera || {};
 
     celebrate(){
       this.clearCelebrationTimers();
+      this.celebrationActive = true;
       const musicTimer = setTimeout(() => {
         this.playMusic();
         this.view.startCelebrationFx();
       }, MUSIC_START_DELAY_MS);
 
       const nextWordTimer = setTimeout(() => {
-        this.view.stopCelebrationFx();
-        this.newWord();
+        this.finishCelebration();
       }, MUSIC_START_DELAY_MS + CELEBRATION_MS);
 
       this.celebrationTimers.push(musicTimer, nextWordTimer);
+    }
+
+    skipCelebration(){
+      if(!this.celebrationActive) return;
+      this.finishCelebration();
+    }
+
+    finishCelebration(){
+      this.celebrationActive = false;
+      this.newWord();
     }
 
     async renderPicture(entry){
@@ -175,10 +270,12 @@ window.GiocoTastiera = window.GiocoTastiera || {};
     }
 
     newWord(){
+      this.celebrationActive = false;
       this.clearCelebrationTimers();
+      this.clearAudioFade();
       this.view.stopCelebrationFx();
       this.view.audio.pause();
-      this.view.audio.volume = 0;
+      this.setMusicLevel(0);
 
       const entry = this.model.pickNextWord();
       this.view.renderTypedBar(this.model.insertedLetters);

@@ -156,6 +156,9 @@ h1{
 .picture-spinner.visible{
   display:block;
 }
+.picture-card.loading .pill{
+  visibility:hidden;
+}
 .picture-source{
   font-size:0.9rem;
   letter-spacing:0.08em;
@@ -278,6 +281,33 @@ h1{
   flex-wrap:wrap;
   gap:18px;
   margin-top:14px;
+}
+.slider-group{
+  display:grid;
+  grid-template-columns:repeat(auto-fit, minmax(240px, 1fr));
+  gap:16px;
+  margin-top:14px;
+}
+.slider-control{
+  display:flex;
+  flex-direction:column;
+  gap:8px;
+}
+.slider-control label{
+  display:flex;
+  justify-content:space-between;
+  gap:12px;
+  font-weight:800;
+  text-transform:uppercase;
+  letter-spacing:0.05em;
+  color:#5d4720;
+}
+.slider-control input[type="range"]{
+  width:100%;
+}
+.slider-value{
+  min-width:52px;
+  text-align:right;
 }
 .primary,
 .secondary{
@@ -528,6 +558,10 @@ canvas{
         <input id="showPictureToggle" type="checkbox">
         <span data-i18n="ui.showPicture">MOSTRA IMMAGINE GUIDA</span>
       </label>
+      <label class="switch-row">
+        <input id="allowCelebrationSkipToggle" type="checkbox">
+        <span data-i18n="ui.allowCelebrationSkip">INTERROMPI LA CERIMONIA CON CLICK O BARRA SPAZIATRICE</span>
+      </label>
     </div>
 
     <div class="option-title" data-i18n="ui.picturePositionTitle">POSIZIONE IMMAGINE</div>
@@ -540,6 +574,24 @@ canvas{
         <input id="picturePositionBottom" type="radio" name="picturePosition" value="bottom">
         <span data-i18n="ui.picturePositionBottom">SOTTO LE PAROLE</span>
       </label>
+    </div>
+
+    <div class="option-title" data-i18n="ui.audioTitle">AUDIO</div>
+    <div class="slider-group">
+      <div class="slider-control">
+        <label for="speechVolumeRange">
+          <span data-i18n="ui.speechVolume">VOLUME PARLATO</span>
+          <span id="speechVolumeValue" class="slider-value">70%</span>
+        </label>
+        <input id="speechVolumeRange" type="range" min="0" max="100" step="5" value="70">
+      </div>
+      <div class="slider-control">
+        <label for="celebrationMusicVolumeRange">
+          <span data-i18n="ui.celebrationMusicVolume">VOLUME MUSICA CERIMONIA</span>
+          <span id="celebrationMusicVolumeValue" class="slider-value">70%</span>
+        </label>
+        <input id="celebrationMusicVolumeRange" type="range" min="0" max="100" step="5" value="70">
+      </div>
     </div>
 
     <div id="settingsGrid" class="settings-grid"></div>

@@ -1,7 +1,7 @@
 window.GiocoTastiera = window.GiocoTastiera || {};
 
 (function(ns){
-  const { CATEGORY_ORDER, CELEBRATION_MS, getCategoryLabel, getLocale, t } = ns.config;
+  const { CATEGORY_ORDER, CELEBRATION_MS, MAX_VOLUME_PERCENT, getCategoryLabel, getLocale, t } = ns.config;
   const { colorForChar, familyPictureKey, sanitizeWords: sanitizeWordList, stripAccents } = ns.model;
 
   class GameView {
@@ -28,6 +28,11 @@ window.GiocoTastiera = window.GiocoTastiera || {};
       this.closeLock = document.getElementById("closeLock");
       this.settingsGrid = document.getElementById("settingsGrid");
       this.showPictureToggle = document.getElementById("showPictureToggle");
+      this.allowCelebrationSkipToggle = document.getElementById("allowCelebrationSkipToggle");
+      this.speechVolumeRange = document.getElementById("speechVolumeRange");
+      this.speechVolumeValue = document.getElementById("speechVolumeValue");
+      this.celebrationMusicVolumeRange = document.getElementById("celebrationMusicVolumeRange");
+      this.celebrationMusicVolumeValue = document.getElementById("celebrationMusicVolumeValue");
       this.picturePositionSide = document.getElementById("picturePositionSide");
       this.picturePositionBottom = document.getElementById("picturePositionBottom");
       this.saveSettings = document.getElementById("saveSettings");
@@ -42,7 +47,40 @@ window.GiocoTastiera = window.GiocoTastiera || {};
 
       this.buildSettingsEditor();
       this.applyI18n();
+      this.bindSettingsInputs();
       this.resizeCanvas();
+    }
+
+    bindSettingsInputs(){
+      if(this.speechVolumeRange){
+        this.speechVolumeRange.addEventListener("input", () => {
+          this.updateVolumeLabel(this.speechVolumeRange, this.speechVolumeValue);
+        });
+      }
+
+      if(this.celebrationMusicVolumeRange){
+        this.celebrationMusicVolumeRange.addEventListener("input", () => {
+          this.updateVolumeLabel(this.celebrationMusicVolumeRange, this.celebrationMusicVolumeValue);
+        });
+      }
+    }
+
+    updateVolumeLabel(input, output){
+      if(!input || !output) return;
+      output.textContent = `${input.value}%`;
+    }
+
+    volumeToSlider(volume){
+      const parsed = Number(volume);
+      const safe = Number.isFinite(parsed) ? parsed : 0;
+      return String(Math.min(Math.max(Math.round(safe), 0), MAX_VOLUME_PERCENT));
+    }
+
+    sliderToVolume(input, fallback = 70){
+      if(!input) return fallback;
+      const parsed = Number(input.value);
+      if(!Number.isFinite(parsed)) return fallback;
+      return Math.min(Math.max(parsed, 0), MAX_VOLUME_PERCENT);
     }
 
     applyI18n(){
@@ -266,6 +304,7 @@ window.GiocoTastiera = window.GiocoTastiera || {};
     }
 
     setPictureLoading(isLoading){
+      this.pictureCard.classList.toggle("loading", isLoading);
       this.pictureFrame.classList.toggle("loading", isLoading);
       this.pictureSpinner.classList.toggle("visible", isLoading);
     }
@@ -334,6 +373,11 @@ window.GiocoTastiera = window.GiocoTastiera || {};
     fillSettingsEditor(settings){
       this.familyPictureDrafts = Object.assign({}, settings.familyPictures || {});
       this.showPictureToggle.checked = settings.showPicture;
+      this.allowCelebrationSkipToggle.checked = settings.allowCelebrationSkip !== false;
+      this.speechVolumeRange.value = this.volumeToSlider(settings.speechVolume);
+      this.celebrationMusicVolumeRange.value = this.volumeToSlider(settings.celebrationMusicVolume);
+      this.updateVolumeLabel(this.speechVolumeRange, this.speechVolumeValue);
+      this.updateVolumeLabel(this.celebrationMusicVolumeRange, this.celebrationMusicVolumeValue);
       this.picturePositionSide.checked = settings.picturePosition !== "bottom";
       this.picturePositionBottom.checked = settings.picturePosition === "bottom";
       for(const category of CATEGORY_ORDER){
@@ -348,6 +392,9 @@ window.GiocoTastiera = window.GiocoTastiera || {};
     readSettingsEditor(defaultSettingsFactory, sanitizeWords, defaultLibrary){
       const next = defaultSettingsFactory();
       next.showPicture = this.showPictureToggle.checked;
+      next.allowCelebrationSkip = this.allowCelebrationSkipToggle.checked;
+      next.speechVolume = this.sliderToVolume(this.speechVolumeRange, next.speechVolume);
+      next.celebrationMusicVolume = this.sliderToVolume(this.celebrationMusicVolumeRange, next.celebrationMusicVolume);
       next.picturePosition = this.picturePositionBottom.checked ? "bottom" : "side";
 
       for(const category of CATEGORY_ORDER){
