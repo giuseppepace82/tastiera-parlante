@@ -27,11 +27,16 @@ window.GiocoTastiera = window.GiocoTastiera || {};
       this.wordAnnouncementTimer = 0;
       this.audioContext = null;
       this.musicGainNode = null;
+      this.deviceMode = this.detectDeviceMode();
+      this.deferredInstallPrompt = null;
+      this.touchStartCompleted = !this.deviceMode.isTouchPrimary;
 
       this.setupMusicGain();
 
-      document.addEventListener("click", this.resumeAudioContextOnce, { once: true });
-      document.addEventListener("keydown", this.resumeAudioContextOnce, { once: true });
+      if(!this.deviceMode.isTouchPrimary){
+        document.addEventListener("click", this.resumeAudioContextOnce, { once: true });
+        document.addEventListener("keydown", this.resumeAudioContextOnce, { once: true });
+      }
     }
 
     enableSpeech = () => {
@@ -45,14 +50,52 @@ window.GiocoTastiera = window.GiocoTastiera || {};
     };
 
     init(){
-      this.enableSpeech();
+      this.view.setDeviceMode(this.deviceMode);
+      if(this.touchStartCompleted){
+        this.enableSpeech();
+      }else{
+        this.view.showTouchStartGate();
+      }
       this.bindEvents();
+      this.registerPwa();
       this.applyAudioSettings();
       this.view.applyColorTheme(this.model.settings);
       this.view.applyLetterSize(this.model.settings);
       this.view.applyPictureLayout(this.model.settings);
       this.view.showSettingsTransferStatus("");
       this.newWord();
+    }
+
+    detectDeviceMode(){
+      const coarsePointer = window.matchMedia ? window.matchMedia("(pointer: coarse)").matches : false;
+      const narrowScreen = Math.min(window.innerWidth, window.innerHeight) <= 1024;
+      const touchPoints = Number(navigator.maxTouchPoints) || 0;
+      const isTouchPrimary = coarsePointer || touchPoints > 0;
+      const isTabletLayout = isTouchPrimary || narrowScreen;
+      return {
+        isTouchPrimary,
+        isTabletLayout,
+        isPortrait: window.innerHeight > window.innerWidth
+      };
+    }
+
+    refreshDeviceMode = () => {
+      this.deviceMode = this.detectDeviceMode();
+      this.view.setDeviceMode(this.deviceMode);
+      this.updateGameplayInputAvailability();
+      this.view.setInstallAvailability(Boolean(this.deferredInstallPrompt), this.isIosLikeDevice());
+    };
+
+    isIosLikeDevice(){
+      const platform = `${navigator.platform || ""} ${navigator.userAgent || ""}`.toLowerCase();
+      return /iphone|ipad|ipod|mac/.test(platform) && (Number(navigator.maxTouchPoints) || 0) > 0;
+    }
+
+    async registerPwa(){
+      if("serviceWorker" in navigator){
+        navigator.serviceWorker.register("sw.js").catch(() => {});
+      }
+      this.view.setInstallAvailability(false, this.isIosLikeDevice());
     }
 
     applySettings(nextSettings, options = {}){
@@ -156,15 +199,26 @@ window.GiocoTastiera = window.GiocoTastiera || {};
     }
 
     bindEvents(){
+      this.view.bindGameplayKeyboard(letter => this.onTouchKeyboardPress(letter));
+      this.view.bindCelebrationSkip(() => {
+        if(this.celebrationActive && this.model.settings.allowCelebrationSkip){
+          this.skipCelebration();
+        }
+      });
+      this.view.bindTouchStart(() => this.completeTouchStart());
+      this.view.bindInstallPrompt(() => this.promptInstall());
+
       this.view.setupButton.addEventListener("click", () => {
         const challenge = this.model.prepareChallenge();
         this.view.showChallenge(challenge);
         this.view.openOverlay(this.view.lockOverlay);
+        this.updateGameplayInputAvailability();
         this.view.focusChallenge();
       });
 
       this.view.closeLock.addEventListener("click", () => {
         this.view.closeOverlay(this.view.lockOverlay);
+        this.updateGameplayInputAvailability();
       });
 
       this.view.lockForm.addEventListener("submit", event => {
@@ -178,12 +232,14 @@ window.GiocoTastiera = window.GiocoTastiera || {};
         this.view.fillSettingsEditor(this.model.settings);
         this.view.showSettingsTransferStatus("");
         this.view.openOverlay(this.view.settingsOverlay);
+        this.updateGameplayInputAvailability();
       });
 
       this.view.saveSettings.addEventListener("click", () => {
         const nextSettings = this.view.readSettingsEditor(createDefaultSettings, sanitizeWords, DEFAULT_LIBRARY);
         this.applySettings(nextSettings, { refreshWord: true });
         this.view.closeOverlay(this.view.settingsOverlay);
+        this.updateGameplayInputAvailability();
       });
 
       this.view.resetSettings.addEventListener("click", () => {
@@ -199,6 +255,7 @@ window.GiocoTastiera = window.GiocoTastiera || {};
 
       this.view.closeSettings.addEventListener("click", () => {
         this.view.closeOverlay(this.view.settingsOverlay);
+        this.updateGameplayInputAvailability();
       });
 
       if(this.view.exportSettingsButton){
@@ -219,7 +276,22 @@ window.GiocoTastiera = window.GiocoTastiera || {};
 
       window.addEventListener("click", this.onCelebrationClick, true);
       window.addEventListener("keydown", this.onKeyDown);
-      window.addEventListener("resize", () => this.view.resizeCanvas());
+      window.addEventListener("resize", () => {
+        this.view.resizeCanvas();
+        this.refreshDeviceMode();
+      });
+      if(window.visualViewport){
+        window.visualViewport.addEventListener("resize", this.refreshDeviceMode);
+      }
+      window.addEventListener("beforeinstallprompt", event => {
+        event.preventDefault();
+        this.deferredInstallPrompt = event;
+        this.view.setInstallAvailability(true, this.isIosLikeDevice());
+      });
+      window.addEventListener("appinstalled", () => {
+        this.deferredInstallPrompt = null;
+        this.view.setInstallAvailability(false, this.isIosLikeDevice());
+      });
     }
 
     onCelebrationClick = (event) => {
@@ -240,17 +312,31 @@ window.GiocoTastiera = window.GiocoTastiera || {};
         return;
       }
 
+      this.handleGameplayInput(event.key, "hardware");
+    };
+
+    onTouchKeyboardPress(letter){
+      this.handleGameplayInput(letter, "touch");
+    }
+
+    handleGameplayInput(rawKey, origin){
       if(this.view.isSetupOpen()) return;
+      if(this.celebrationActive) return;
+      if(!this.touchStartCompleted && origin === "touch") return;
       if(!this.model.currentEntry || this.model.currentIndex >= this.model.normalizedWord.length) return;
 
-      const pressed = event.key;
+      const pressed = String(rawKey || "");
       if(!/^[a-zàèéìòù]$/i.test(pressed)) return;
 
       const base = stripAccents(pressed).toUpperCase();
       this.speechService.speakLetter(base);
+      this.view.flashKeyboardKey(base, "pressed");
 
       const result = this.model.recordKey(pressed);
-      if(!result.accepted) return;
+      if(!result.accepted){
+        this.view.flashKeyboardKey(base, "wrong");
+        return;
+      }
 
       this.view.renderTypedBar(
         this.model.wordLayout,
@@ -272,7 +358,34 @@ window.GiocoTastiera = window.GiocoTastiera || {};
         return;
       }
       this.celebrate();
-    };
+    }
+
+    completeTouchStart(){
+      this.touchStartCompleted = true;
+      this.enableSpeech();
+      this.view.hideTouchStartGate();
+      this.updateGameplayInputAvailability();
+      if(this.model.currentEntry){
+        this.scheduleWordAnnouncement(this.model.currentEntry.word, 20);
+      }
+    }
+
+    updateGameplayInputAvailability(){
+      const enabled = this.touchStartCompleted && !this.celebrationActive && !this.view.isSetupOpen();
+      this.view.setGameplayKeyboardEnabled(enabled);
+      this.view.setCelebrationSkipVisible(enabled === false && this.celebrationActive && this.model.settings.allowCelebrationSkip);
+    }
+
+    async promptInstall(){
+      if(!this.deferredInstallPrompt) return;
+      this.deferredInstallPrompt.prompt();
+      try{
+        await this.deferredInstallPrompt.userChoice;
+      }catch{
+      }
+      this.deferredInstallPrompt = null;
+      this.view.setInstallAvailability(false, this.isIosLikeDevice());
+    }
 
     clearCelebrationTimers(){
       for(const timer of this.celebrationTimers){
@@ -373,6 +486,7 @@ window.GiocoTastiera = window.GiocoTastiera || {};
     celebrate(){
       this.clearCelebrationTimers();
       this.celebrationActive = true;
+      this.updateGameplayInputAvailability();
       const celebrationDelay = this.getCelebrationStartDelay();
       const musicTimer = setTimeout(() => {
         this.playMusic();
@@ -393,6 +507,7 @@ window.GiocoTastiera = window.GiocoTastiera || {};
 
     finishCelebration(){
       this.celebrationActive = false;
+      this.updateGameplayInputAvailability();
       this.newWord();
     }
 
@@ -418,8 +533,11 @@ window.GiocoTastiera = window.GiocoTastiera || {};
         this.model.currentIndex,
         this.model.settings
       );
+      this.updateGameplayInputAvailability();
       this.renderPicture(entry);
-      this.scheduleWordAnnouncement(entry.word);
+      if(this.touchStartCompleted){
+        this.scheduleWordAnnouncement(entry.word);
+      }
     }
   }
 

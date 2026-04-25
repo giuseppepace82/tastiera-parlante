@@ -3,6 +3,13 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#ffd447">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Tastiera Parlante">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="assets/app-icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="assets/app-icon.svg">
 <title data-i18n="ui.title">Tastiera Parlante</title>
 <style>
 :root{
@@ -71,6 +78,7 @@
 body{
   margin:0;
   min-height:100vh;
+  min-height:100dvh;
   background:
     radial-gradient(circle at top left, var(--body-glow-top), transparent 32%),
     radial-gradient(circle at bottom right, var(--body-glow-bottom), transparent 28%),
@@ -78,6 +86,11 @@ body{
   color:var(--ink);
   font-family:"Trebuchet MS", "Comic Sans MS", sans-serif;
   text-align:center;
+  padding:
+    env(safe-area-inset-top, 0)
+    env(safe-area-inset-right, 0)
+    env(safe-area-inset-bottom, 0)
+    env(safe-area-inset-left, 0);
 }
 button, input, textarea{
   font:inherit;
@@ -87,6 +100,7 @@ button, input, textarea{
   width:min(1120px, calc(100% - 28px));
   margin:0 auto;
   padding:22px 0 40px;
+  min-height:100dvh;
 }
 .topbar{
   display:flex;
@@ -238,6 +252,12 @@ h1{
   gap:18px;
   min-height:100%;
 }
+.game-main{
+  display:flex;
+  flex-direction:column;
+  gap:18px;
+  flex:1;
+}
 .word-grid,
 .typed-grid{
   display:flex;
@@ -298,6 +318,130 @@ h1{
   background:linear-gradient(180deg, var(--typed-wrap-start) 0%, var(--typed-wrap-end) 100%);
   border:2px dashed var(--typed-wrap-border);
 }
+.keyboard-panel{
+  display:none;
+  flex-direction:column;
+  gap:12px;
+  padding:16px;
+  border-radius:24px;
+  background:linear-gradient(180deg, rgba(255,255,255,0.92) 0%, rgba(255,248,220,0.96) 100%);
+  border:2px solid var(--typed-wrap-border);
+  box-shadow:inset 0 0 0 1px rgba(255,255,255,0.5);
+}
+.keyboard-panel.visible{
+  display:flex;
+}
+.keyboard-header{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:12px;
+}
+.keyboard-title{
+  font-size:0.95rem;
+  font-weight:900;
+  letter-spacing:0.08em;
+  text-transform:uppercase;
+  color:var(--title-ink);
+}
+.keyboard-groups{
+  display:flex;
+  flex-direction:column;
+  gap:12px;
+}
+.keyboard-group{
+  display:flex;
+  flex-direction:column;
+  gap:8px;
+}
+.keyboard-group-label{
+  font-size:0.78rem;
+  font-weight:900;
+  letter-spacing:0.08em;
+  text-transform:uppercase;
+  color:var(--support-ink);
+  text-align:left;
+}
+.keyboard-grid{
+  display:grid;
+  grid-template-columns:repeat(5, minmax(0, 1fr));
+  gap:10px;
+}
+.keyboard-grid.consonants{
+  grid-template-columns:repeat(7, minmax(0, 1fr));
+}
+.key-button{
+  min-height:64px;
+  border:none;
+  border-radius:18px;
+  font-size:1.7rem;
+  font-weight:900;
+  letter-spacing:0.04em;
+  color:#fff;
+  box-shadow:0 10px 22px rgba(0,0,0,0.16);
+  touch-action:manipulation;
+}
+.key-button.vowel{
+  background:#ff00ff;
+}
+.key-button.consonant{
+  background:#32cd32;
+}
+.key-button.expected{
+  outline:5px solid var(--expected-ring);
+  outline-offset:3px;
+  transform:translateY(-2px) scale(1.02);
+}
+.key-button.pressed{
+  transform:scale(0.97);
+  box-shadow:0 6px 14px rgba(0,0,0,0.18);
+}
+.key-button.wrong{
+  animation:key-wrong 260ms ease;
+}
+.key-button:disabled{
+  opacity:0.45;
+  box-shadow:none;
+}
+.celebration-skip{
+  display:none;
+}
+.touch-primary .celebration-skip.visible{
+  display:inline-flex;
+}
+.touch-start-overlay{
+  position:fixed;
+  inset:0;
+  display:none;
+  align-items:center;
+  justify-content:center;
+  padding:22px;
+  background:rgba(47,42,31,0.4);
+  z-index:30;
+}
+.touch-start-overlay.open{
+  display:flex;
+}
+.touch-start-card{
+  width:min(520px, 100%);
+  border-radius:28px;
+  background:var(--modal-bg);
+  box-shadow:var(--modal-shadow);
+  padding:24px;
+  text-align:left;
+}
+.touch-start-card h2{
+  margin:0 0 10px;
+  text-transform:uppercase;
+  letter-spacing:0.06em;
+}
+.touch-start-card p{
+  margin:0;
+  color:var(--muted-ink);
+}
+.touch-start-card .modal-actions{
+  justify-content:flex-end;
+}
 .typed-chip{
   width:calc(var(--typed-tile-base) * var(--letter-scale));
   height:calc(var(--typed-tile-base) * var(--letter-scale));
@@ -331,6 +475,9 @@ h1{
   box-shadow:var(--modal-shadow);
   padding:24px;
   text-align:left;
+}
+.overlay.open .modal{
+  max-height:min(var(--overlay-viewport-height, 90vh), 900px);
 }
 .modal h2{
   margin:0 0 8px;
@@ -638,6 +785,24 @@ h1{
   text-transform:uppercase;
   color:var(--support-ink);
 }
+.install-card{
+  display:flex;
+  flex-direction:column;
+  gap:12px;
+}
+.install-actions{
+  display:flex;
+  flex-wrap:wrap;
+  gap:12px;
+}
+.install-hint{
+  min-height:24px;
+  font-size:0.88rem;
+  font-weight:700;
+  letter-spacing:0.05em;
+  text-transform:uppercase;
+  color:var(--support-ink);
+}
 .category-toolbar{
   display:flex;
   flex-wrap:wrap;
@@ -782,12 +947,32 @@ canvas{
 @keyframes spin{
   to { transform:translate(-50%, -50%) rotate(360deg); }
 }
+@keyframes key-wrong{
+  0%{ transform:translateX(0); }
+  30%{ transform:translateX(-4px); }
+  60%{ transform:translateX(4px); }
+  100%{ transform:translateX(0); }
+}
+@media (max-width: 1180px){
+  .layout{
+    grid-template-columns:minmax(0, 1fr) minmax(260px, 0.72fr);
+  }
+  .keyboard-grid.consonants{
+    grid-template-columns:repeat(6, minmax(0, 1fr));
+  }
+}
 @media (max-width: 900px){
   .layout{
     grid-template-columns:1fr;
   }
   .picture-card{
     order:-1;
+  }
+  .touch-primary .picture-card{
+    order:2;
+  }
+  .keyboard-grid.consonants{
+    grid-template-columns:repeat(5, minmax(0, 1fr));
   }
 }
 @media (max-width: 560px){
@@ -810,6 +995,38 @@ canvas{
   .picture-frame{
     min-height:240px;
   }
+  .keyboard-grid,
+  .keyboard-grid.consonants{
+    grid-template-columns:repeat(4, minmax(0, 1fr));
+  }
+  .key-button{
+    min-height:58px;
+    font-size:1.45rem;
+  }
+}
+@media (pointer:coarse){
+  .touch-primary .screen{
+    width:min(100% - 18px, 1200px);
+    padding-top:14px;
+    padding-bottom:24px;
+  }
+  .touch-primary .topbar{
+    margin-bottom:10px;
+  }
+  .touch-primary .layout{
+    min-height:calc(100dvh - 110px);
+  }
+  .touch-primary .panel{
+    border-radius:24px;
+  }
+  .touch-primary .keyboard-panel{
+    display:flex;
+  }
+  .touch-primary .modal{
+    width:min(100%, 980px);
+    max-height:calc(var(--overlay-viewport-height, 100dvh) - 16px);
+    border-radius:24px;
+  }
 }
 </style>
 </head>
@@ -827,10 +1044,29 @@ canvas{
 
   <div class="layout">
     <section class="panel game-panel">
-      <div id="word" class="word-grid" data-i18n-aria-label="ui.wordAriaLabel" aria-label="Parola da leggere"></div>
+      <div class="game-main">
+        <div id="word" class="word-grid" data-i18n-aria-label="ui.wordAriaLabel" aria-label="Parola da leggere"></div>
 
-      <div class="typed-wrap">
-        <div id="typed" class="typed-grid" aria-live="polite"></div>
+        <div class="typed-wrap">
+          <div id="typed" class="typed-grid" aria-live="polite"></div>
+        </div>
+
+        <section id="gameplayKeyboard" class="keyboard-panel" aria-label="Tastiera di gioco" hidden>
+          <div class="keyboard-header">
+            <div class="keyboard-title" data-i18n="ui.gameplayKeyboard">TASTIERA DI GIOCO</div>
+            <button id="celebrationSkipButton" class="secondary celebration-skip" type="button" data-i18n="ui.gameplaySkipCelebration">SALTA</button>
+          </div>
+          <div class="keyboard-groups">
+            <div class="keyboard-group">
+              <div class="keyboard-group-label" data-i18n="ui.gameplayKeyboardVowels">VOCALI</div>
+              <div id="vowelKeyboardGrid" class="keyboard-grid vowels"></div>
+            </div>
+            <div class="keyboard-group">
+              <div class="keyboard-group-label" data-i18n="ui.gameplayKeyboardConsonants">CONSONANTI</div>
+              <div id="consonantKeyboardGrid" class="keyboard-grid consonants"></div>
+            </div>
+          </div>
+        </section>
       </div>
     </section>
 
@@ -977,6 +1213,17 @@ canvas{
       </section>
 
       <section class="settings-section">
+        <h3 class="settings-section-title" data-i18n="ui.installSectionTitle">INSTALLAZIONE</h3>
+        <div class="settings-section-body install-card">
+          <p class="settings-note" data-i18n="ui.installSectionBody">Su Android puoi installare l'app dal browser. Su iPad usa Condividi e poi Aggiungi a Home.</p>
+          <div class="install-actions">
+            <button id="installAppButton" class="secondary" type="button" data-i18n="ui.installButton">INSTALLA APP</button>
+          </div>
+          <div id="installHint" class="install-hint" data-i18n="ui.installIosHint">SU IPAD/IPHONE: SAFARI > CONDIVIDI > AGGIUNGI A HOME.</div>
+        </div>
+      </section>
+
+      <section class="settings-section">
         <h3 class="settings-section-title" data-i18n="ui.configurationTitle">CONFIGURAZIONI</h3>
         <div class="settings-section-body">
           <p class="settings-note" data-i18n="ui.importSettingsHint">IMPORTA O ESPORTA LE IMPOSTAZIONI DEL GIOCO IN FORMATO JSON.</p>
@@ -1049,6 +1296,16 @@ canvas{
         <button id="imagePickerAutomatic" class="secondary" type="button" data-i18n="ui.imagePickerUseAutomatic">USA SELEZIONE AUTOMATICA</button>
         <button id="closeImagePicker" class="secondary" type="button" data-i18n="ui.imagePickerBack">TORNA AL SETUP</button>
       </div>
+    </div>
+  </div>
+</div>
+
+<div id="touchStartOverlay" class="touch-start-overlay" aria-hidden="true">
+  <div class="touch-start-card">
+    <h2 data-i18n="ui.startGateTitle">TOCCA PER INIZIARE</h2>
+    <p data-i18n="ui.startGateIntro">Su tablet il gioco usa una tastiera grande e colorata. Tocca qui per attivare audio e parola.</p>
+    <div class="modal-actions">
+      <button id="touchStartButton" class="primary" type="button" data-i18n="ui.startGateButton">INIZIA</button>
     </div>
   </div>
 </div>
