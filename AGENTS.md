@@ -116,6 +116,7 @@ Regole attuali:
 - la clip musicale dura 6 secondi
 - la clip viene presa da un punto casuale del brano
 - applicare dissolvenza audio in entrata e uscita
+- la riproduzione deve attendere che l'audio sia pronto, per evitare cerimonie silenziose
 
 ---
 
@@ -136,11 +137,12 @@ Regole attuali:
 - il picker immagini deve restare sempre dentro la modale setup già aperta; evitare modali sovrapposte
 - se un’immagine non si carica, il sistema deve tentare automaticamente altri candidati prima di mostrare fallback o errore
 - per le categorie personalizzate, nelle ricerche realtime il nome della categoria deve essere usato come contesto semantico aggiuntivo
-- per ogni parola non `famiglia` è possibile scegliere dal setup una specifica immagine web da usare come candidata prioritaria
+- per ogni parola non `famiglia` è possibile scegliere dal setup una specifica immagine web oppure caricare un’immagine locale dal dispositivo come candidata prioritaria
 - la selezione immagini per parola è raccolta in accordion chiusi di default
 - nel picker immagini è possibile sfogliare più pagine di risultati recuperati dal web
 - nel picker immagini l’utente può inserire una chiave di ricerca personalizzata oltre alla query predefinita della parola
 - la ricerca realtime deve provare varianti automatiche della query composta quando utile
+- nel picker immagini è possibile caricare direttamente un’immagine locale dal dispositivo senza download esterni
 - è possibile attivare una cache persistente delle ricerche immagini dal setup
 - lo zoom dell’immagine è configurato sulla singola immagine selezionata, non come impostazione globale
 
@@ -180,6 +182,7 @@ Funzioni attuali del setup:
     - sotto alle parole
   - per ogni parola non `famiglia`, aprire un picker immagini web
   - cercare immagini con query personalizzata
+  - caricare dal dispositivo un’immagine locale per la singola parola
   - scegliere o ripristinare la selezione automatica dell’immagine per singola parola
   - regolare lo zoom della singola immagine selezionata
 - sezione Cerimonia:
@@ -189,6 +192,7 @@ Funzioni attuali del setup:
 - sezione Configurazioni:
   - esportare la configurazione corrente in JSON
   - importare una configurazione JSON
+  - includere anche le immagini locali caricate per singola parola
 - sezione Categorie:
   - attivare o disattivare singole categorie baseline
   - modificare l’elenco delle parole per categoria
@@ -218,6 +222,7 @@ Categorie personalizzate:
 Persistenza:
 - le impostazioni vengono salvate in `localStorage`
 - la cache immagini, se attivata, viene salvata in `localStorage`
+- le immagini locali caricate per parole non `famiglia` vengono salvate nelle impostazioni e rientrano in export/import
 
 ---
 
@@ -254,6 +259,7 @@ Separazione delle responsabilità:
   - recupero immagini realtime
   - cache immagini persistente opzionale
   - gestione sintesi vocale
+  - nessuna dipendenza da backend per il caricamento locale delle immagini nel picker
 
 Nota tecnica importante:
 - il caricamento JS è basato su script classici separati, non su ES modules
@@ -261,6 +267,7 @@ Nota tecnica importante:
 - le configurazioni UI del setup devono riflettere sempre la struttura funzionale reale del gioco, non solo lo stato tecnico del codice
 - il pannello di composizione attivo è `#typed`; il vecchio contenitore `#boxes` non fa più parte della UI
 - import ed export configurazioni devono passare dalla normalizzazione del model prima di essere applicati
+- le immagini locali per parole non `famiglia` sono memorizzate in `preferredWordImages`, quindi vengono esportate e importate insieme al resto della configurazione
 
 ---
 

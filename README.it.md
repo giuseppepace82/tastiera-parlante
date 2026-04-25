@@ -44,6 +44,7 @@ Tastiera Parlante è un gioco educativo da tastiera sviluppato in HTML, CSS e Ja
 - picker immagini integrato nella stessa modale setup
 - ricerca immagini con chiave personalizzata
 - varianti automatiche per query composte
+- upload dal dispositivo per l’immagine di una singola parola non famiglia
 - ARASAAC come sorgente visiva primaria
 - Wikipedia/Wikimedia come fallback
 - cache immagini persistente opzionale
@@ -96,7 +97,7 @@ Dal setup è possibile:
 - scegliere la posizione dell’immagine: laterale o sotto
 - aprire un picker immagini web per ogni parola non famiglia
 - cercare immagini con una query personalizzata per parola
-- mantenere la scelta automatica o impostare un’immagine web preferita
+- mantenere la scelta automatica, impostare un’immagine web preferita o caricare un’immagine locale
 - regolare lo zoom dell’immagine selezionata per singola parola
 - attivare o disattivare la cerimonia finale
 - attivare o disattivare l’interruzione della cerimonia con click o barra spaziatrice
@@ -143,9 +144,12 @@ Per sintesi vocale e caricamento immagini realtime è consigliato un browser mod
 - Le immagini della categoria famiglia sono gestite in locale.
 - Le immagini delle altre categorie vengono cercate in tempo reale.
 - Il picker immagini resta dentro la modale setup e non apre una seconda modale sovrapposta.
+- Per le parole non famiglia è possibile anche caricare un’immagine locale dal dispositivo.
 - Il picker immagini accetta una chiave di ricerca personalizzata e prova anche varianti automatiche per query multi-parola.
 - Se attivata, la cache immagini viene salvata in `localStorage`.
 - Le configurazioni importate vengono normalizzate prima di essere applicate.
+- Le immagini locali caricate per parole non famiglia sono incluse in export/import tramite `preferredWordImages`.
 - Anche il nome delle categorie personalizzate viene usato come contesto per la ricerca immagini realtime.
 - Se manca una foto famiglia, l’app usa `assets/famiglia/generico.svg`.
+- La musichetta della cerimonia attende che l’audio sia pronto prima di avviare il fade-in.
 - L’interfaccia è volutamente semplice, visiva e prevedibile.

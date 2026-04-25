@@ -47,6 +47,7 @@ It is designed to help children practice letters, sounds, and guided word comple
 - per-word web image picker for non-family categories
 - custom search query input inside the image picker
 - automatic search variants for compound queries
+- local device upload for a specific non-family word image
 - per-word image zoom, stored on the selected image itself
 - ARASAAC as primary visual source
 - Wikipedia/Wikimedia as fallback
@@ -100,7 +101,7 @@ From setup, it is possible to:
 - choose image position: side or bottom
 - open a per-word image picker for non-family categories
 - search images with a custom query for a specific word
-- keep automatic image choice or select a preferred web image for a specific word
+- keep automatic image choice, select a preferred web image, or upload a local image for a specific word
 - adjust zoom for each selected image independently
 - enable or disable celebration
 - enable or disable celebration skip via click or space bar
@@ -147,12 +148,14 @@ For speech synthesis and live image loading, a modern browser is recommended.
 - Family images are handled locally.
 - Other category images are fetched in realtime.
 - The image picker stays inside the setup modal rather than opening a second modal.
-- Preferred non-family images can be chosen from setup and are then used as the first candidate for that word.
+- Preferred non-family images can be chosen from setup or uploaded from the device and are then used as the first candidate for that word.
 - The image picker accepts a custom search key and also tries automatic variants for multi-word queries.
 - If enabled, image search cache is persisted in `localStorage`.
 - Imported settings are normalized before being applied.
+- Uploaded non-family images are stored inside `preferredWordImages`, so they are included in export/import JSON files.
 - Image zoom is configured per selected image, not globally.
 - Custom categories are also used as semantic context for realtime image searches.
 - If a family image is missing, the app uses `assets/famiglia/generico.svg`.
+- Celebration music playback waits for the audio element to be ready before fade-in starts.
 - The active composition panel is `#typed`; the old separate `boxes` panel is no longer used.
 - The interface is intentionally simple and highly visual.

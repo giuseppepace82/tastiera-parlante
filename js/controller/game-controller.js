@@ -318,8 +318,28 @@ window.GiocoTastiera = window.GiocoTastiera || {};
       this.audioFadeFrame = requestAnimationFrame(tick);
     }
 
-    playMusic(){
+    waitForAudioReady(audio){
+      if(audio.readyState >= HTMLMediaElement.HAVE_METADATA){
+        return Promise.resolve();
+      }
+
+      return new Promise(resolve => {
+        const onReady = () => {
+          audio.removeEventListener("loadedmetadata", onReady);
+          audio.removeEventListener("canplay", onReady);
+          resolve();
+        };
+
+        audio.addEventListener("loadedmetadata", onReady, { once: true });
+        audio.addEventListener("canplay", onReady, { once: true });
+        audio.load();
+      });
+    }
+
+    async playMusic(){
       const audio = this.view.audio;
+      await this.waitForAudioReady(audio);
+
       const hasDuration = Number.isFinite(audio.duration) && audio.duration > 0;
       const clipSeconds = hasDuration ? Math.min(CELEBRATION_MS / 1000, audio.duration) : 0;
       const maxStart = hasDuration ? Math.max(audio.duration - clipSeconds, 0) : 0;
@@ -327,9 +347,17 @@ window.GiocoTastiera = window.GiocoTastiera || {};
 
       this.resumeAudioContext();
       audio.pause();
-      audio.currentTime = start;
+      try{
+        audio.currentTime = start;
+      }catch{
+        audio.currentTime = 0;
+      }
       this.setMusicLevel(0);
-      audio.play().catch(() => {});
+      try{
+        await audio.play();
+      }catch{
+        return;
+      }
       this.fadeVolume(0, this.getMusicOutputVolume(), FADE_IN_MS);
 
       const fadeOutDelay = Math.max(CELEBRATION_MS - FADE_OUT_MS, 0);

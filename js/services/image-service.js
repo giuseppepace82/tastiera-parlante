@@ -3,6 +3,7 @@ window.GiocoTastiera = window.GiocoTastiera || {};
 (function(ns){
   const {
     ARASAAC_IMAGE_SIZE,
+    DEFAULT_IMAGE_PICKER_SOURCES,
     IMAGE_CACHE_STORAGE_KEY,
     FAMILY_FALLBACK_IMAGE,
     IMAGE_QUERY_MAP,
@@ -90,6 +91,16 @@ window.GiocoTastiera = window.GiocoTastiera || {};
           this.imageCache.set(key, this.sanitizeCandidates(value.candidates));
         }
       }
+    }
+
+    normalizeSelectedSources(sourceIds){
+      const allowed = new Set(["arasaac", "wikipedia", "wikimedia"]);
+      const base = Array.isArray(sourceIds) ? sourceIds : DEFAULT_IMAGE_PICKER_SOURCES;
+      return [...new Set(
+        base
+          .map(sourceId => String(sourceId || "").trim().toLowerCase())
+          .filter(sourceId => allowed.has(sourceId))
+      )];
     }
 
     persistImageCacheEntry(cacheKey, candidates){
@@ -247,7 +258,7 @@ window.GiocoTastiera = window.GiocoTastiera || {};
               width: resolvedPage.original.width,
               height: resolvedPage.original.height
             }),
-            sourceKind: "wikimedia"
+            sourceKind: "wikipedia"
           });
         }
 
@@ -297,24 +308,32 @@ window.GiocoTastiera = window.GiocoTastiera || {};
       return [];
     }
 
-    async fetchRealtimeImage(entry, searchQuery = ""){
-      const cacheKey = `${entry.category}:${entry.word}:${String(searchQuery || "").trim().toLowerCase() || "__default__"}`;
+    async fetchRealtimeImage(entry, searchQuery = "", sourceIds = DEFAULT_IMAGE_PICKER_SOURCES){
+      const selectedSources = this.normalizeSelectedSources(sourceIds);
+      const cacheKey = `${entry.category}:${entry.word}:${String(searchQuery || "").trim().toLowerCase() || "__default__"}:${selectedSources.join(",") || "__none__"}`;
       if(this.cacheEnabled && this.imageCache.has(cacheKey)) return this.imageCache.get(cacheKey);
 
       const candidates = [];
-      try{
-        candidates.push(...await this.fetchArasaacImages(entry, searchQuery));
-      }catch{
+
+      if(selectedSources.includes("arasaac")){
+        try{
+          candidates.push(...await this.fetchArasaacImages(entry, searchQuery));
+        }catch{
+        }
       }
 
-      try{
-        candidates.push(...await this.fetchWikipediaImages(entry, searchQuery));
-      }catch{
+      if(selectedSources.includes("wikipedia")){
+        try{
+          candidates.push(...await this.fetchWikipediaImages(entry, searchQuery));
+        }catch{
+        }
       }
 
-      try{
-        candidates.push(...await this.fetchWikimediaCommonsImages(entry, searchQuery));
-      }catch{
+      if(selectedSources.includes("wikimedia")){
+        try{
+          candidates.push(...await this.fetchWikimediaCommonsImages(entry, searchQuery));
+        }catch{
+        }
       }
 
       const deduped = [];
@@ -332,8 +351,9 @@ window.GiocoTastiera = window.GiocoTastiera || {};
       return deduped;
     }
 
-    async fetchRealtimeImagePage(entry, page = 0, searchQuery = ""){
-      const catalog = await this.fetchRealtimeImage(entry, searchQuery);
+    async fetchRealtimeImagePage(entry, page = 0, searchQuery = "", sourceIds = DEFAULT_IMAGE_PICKER_SOURCES){
+      const selectedSources = this.normalizeSelectedSources(sourceIds);
+      const catalog = await this.fetchRealtimeImage(entry, searchQuery, selectedSources);
       const safePage = Math.max(Number(page) || 0, 0);
       const start = safePage * MAX_REMOTE_IMAGE_CANDIDATES;
       const end = start + MAX_REMOTE_IMAGE_CANDIDATES;
@@ -341,7 +361,8 @@ window.GiocoTastiera = window.GiocoTastiera || {};
         candidates: catalog.slice(start, end),
         hasPrevious: safePage > 0,
         hasNext: end < catalog.length,
-        page: safePage
+        page: safePage,
+        notice: ""
       };
     }
 

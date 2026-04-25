@@ -5,6 +5,7 @@ window.GiocoTastiera = window.GiocoTastiera || {};
   const DEFAULT_LOCALE = "it";
   const DEFAULT_COLOR_THEME = "sun";
   const DEFAULT_IMAGE_CACHE_ENABLED = false;
+  const DEFAULT_IMAGE_PICKER_SOURCES = ["arasaac", "wikipedia", "wikimedia"];
 
   const I18N = {
     it: {
@@ -88,6 +89,13 @@ window.GiocoTastiera = window.GiocoTastiera || {};
         imagePickerSearchLabel: "Chiave di ricerca",
         imagePickerSearchPlaceholder: "Parola da cercare",
         imagePickerSearch: "Cerca immagini",
+        imagePickerUpload: "Carica dal dispositivo",
+        imagePickerSourcesLabel: "Sorgenti immagini",
+        imagePickerSourceArasaac: "ARASAAC",
+        imagePickerSourceWikipedia: "Wikipedia",
+        imagePickerSourceWikimedia: "Wikimedia Commons",
+        imagePickerNoSourceSelected: "Seleziona almeno una sorgente immagini",
+        imagePickerUploadError: "Immagine locale non valida",
         imagePickerLoading: "Caricamento immagini in corso",
         imagePickerEmpty: "Nessuna immagine disponibile per questa parola",
         imagePickerUseAutomatic: "Usa selezione automatica",
@@ -107,6 +115,7 @@ window.GiocoTastiera = window.GiocoTastiera || {};
         imageSourceArasaac: "Pittogramma • ARASAAC • {term} • ID {id}",
         imageSourceWikipedia: "Web • Wikipedia • {title} • {width}x{height}",
         imageSourceWikimedia: "Web • Wikimedia Commons • {title}",
+        imageSourceUploadedWord: "Immagine locale • Setup",
         imageSourceLocalFamily: "Foto locale • Famiglia",
         imageSourceFallbackFamily: "SVG generico • Famiglia",
         imageSourcePreferred: "Scelta nel setup • {source}"
@@ -303,6 +312,7 @@ window.GiocoTastiera = window.GiocoTastiera || {};
     DEFAULT_LOCALE,
     DEFAULT_COLOR_THEME,
     DEFAULT_IMAGE_CACHE_ENABLED,
+    DEFAULT_IMAGE_PICKER_SOURCES,
     COLOR_THEMES,
     I18N,
     getLocale: () => currentLocale,
@@ -351,8 +361,8 @@ window.GiocoTastiera = window.GiocoTastiera || {};
     MAX_LETTER_SIZE_PERCENT: 140,
     LETTER_SIZE_STEP_PERCENT: 5,
     DEFAULT_PICTURE_ZOOM_PERCENT: 100,
-    MIN_PICTURE_ZOOM_PERCENT: 100,
-    MAX_PICTURE_ZOOM_PERCENT: 180,
+    MIN_PICTURE_ZOOM_PERCENT: 0,
+    MAX_PICTURE_ZOOM_PERCENT: 150,
     PICTURE_ZOOM_STEP_PERCENT: 5,
     SPEECH_VOLUME_BOOST: 1.35,
     MUSIC_START_DELAY_MS: 2000,

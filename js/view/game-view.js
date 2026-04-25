@@ -7,6 +7,7 @@ window.GiocoTastiera = window.GiocoTastiera || {};
     CELEBRATION_DELAY_STEP_MS,
     COLOR_THEMES,
     DEFAULT_COLOR_THEME,
+    DEFAULT_IMAGE_PICKER_SOURCES,
     DEFAULT_LETTER_SIZE_PERCENT,
     DEFAULT_PICTURE_ZOOM_PERCENT,
     LETTER_SIZE_STEP_PERCENT,
@@ -47,6 +48,9 @@ window.GiocoTastiera = window.GiocoTastiera || {};
       this.imagePickerIntro = document.getElementById("imagePickerIntro");
       this.imagePickerSearchInput = document.getElementById("imagePickerSearchInput");
       this.imagePickerSearchButton = document.getElementById("imagePickerSearchButton");
+      this.imagePickerUploadButton = document.getElementById("imagePickerUploadButton");
+      this.imagePickerUploadInput = document.getElementById("imagePickerUploadInput");
+      this.imagePickerSourceInputs = Array.from(document.querySelectorAll("[data-image-picker-source]"));
       this.imagePickerStatus = document.getElementById("imagePickerStatus");
       this.imagePickerGrid = document.getElementById("imagePickerGrid");
       this.imagePickerAutomatic = document.getElementById("imagePickerAutomatic");
@@ -95,6 +99,7 @@ window.GiocoTastiera = window.GiocoTastiera || {};
       this.imageService = null;
       this.currentImagePickerEntry = null;
       this.currentImagePickerSearchQuery = "";
+      this.currentImagePickerSources = [...DEFAULT_IMAGE_PICKER_SOURCES];
       this.imagePickerRequestId = 0;
       this.currentImagePickerPage = 0;
       this.imagePickerReturnScrollTop = 0;
@@ -160,12 +165,33 @@ window.GiocoTastiera = window.GiocoTastiera || {};
         this.imagePickerSearchButton.addEventListener("click", () => this.searchImagePicker());
       }
 
+      if(this.imagePickerUploadButton){
+        this.imagePickerUploadButton.addEventListener("click", () => {
+          if(this.imagePickerUploadInput){
+            this.imagePickerUploadInput.click();
+          }
+        });
+      }
+
+      if(this.imagePickerUploadInput){
+        this.imagePickerUploadInput.addEventListener("change", async event => {
+          const input = event.target;
+          const file = input && input.files ? input.files[0] : null;
+          await this.applyImagePickerUpload(file);
+          input.value = "";
+        });
+      }
+
       if(this.imagePickerSearchInput){
         this.imagePickerSearchInput.addEventListener("keydown", event => {
           if(event.key !== "Enter") return;
           event.preventDefault();
           this.searchImagePicker();
         });
+      }
+
+      for(const input of this.imagePickerSourceInputs){
+        input.addEventListener("change", () => this.searchImagePicker());
       }
 
       if(this.closeImagePicker){
@@ -202,6 +228,27 @@ window.GiocoTastiera = window.GiocoTastiera || {};
     triggerImportSettingsPicker(){
       if(!this.importSettingsInput) return;
       this.importSettingsInput.click();
+    }
+
+    readImagePickerSources(){
+      return this.imagePickerSourceInputs
+        .filter(input => input.checked)
+        .map(input => input.dataset.imagePickerSource)
+        .filter(Boolean);
+    }
+
+    fillImagePickerSources(sources){
+      const selected = new Set(Array.isArray(sources) ? sources : DEFAULT_IMAGE_PICKER_SOURCES);
+      for(const input of this.imagePickerSourceInputs){
+        input.checked = selected.has(input.dataset.imagePickerSource);
+      }
+    }
+
+    resolveCurrentImagePickerQuery(){
+      if(!this.currentImagePickerEntry || !this.imageService) return "";
+
+      const rawValue = this.imagePickerSearchInput ? this.imagePickerSearchInput.value.trim() : "";
+      return rawValue || this.imageService.getDefaultSearchQuery(this.currentImagePickerEntry);
     }
 
     volumeToSlider(volume){
@@ -462,10 +509,12 @@ window.GiocoTastiera = window.GiocoTastiera || {};
     }
 
     renderImagePickerCandidates(entry, response){
-      const { candidates, hasPrevious, hasNext } = response;
+      const { candidates, hasPrevious, hasNext, notice } = response;
       if(!this.imagePickerGrid) return;
       this.imagePickerGrid.innerHTML = "";
-      this.imagePickerStatus.textContent = candidates.length ? "" : t("ui.imagePickerEmpty");
+      this.imagePickerStatus.textContent = candidates.length
+        ? (notice || "")
+        : [notice, t("ui.imagePickerEmpty")].filter(Boolean).join(" • ");
       if(this.imagePickerPrevious) this.imagePickerPrevious.disabled = !hasPrevious;
       if(this.imagePickerNext) this.imagePickerNext.disabled = !hasNext;
 
@@ -501,8 +550,35 @@ window.GiocoTastiera = window.GiocoTastiera || {};
       }
     }
 
+    async applyImagePickerUpload(file){
+      if(!file || !this.currentImagePickerEntry) return;
+
+      try{
+        const src = await this.readLocalImage(file);
+        const key = wordImageKey(this.currentImagePickerEntry.category, this.currentImagePickerEntry.word);
+        const existing = this.preferredWordImagesDraft[key];
+        this.preferredWordImagesDraft[key] = {
+          src,
+          source: t("ui.imageSourceUploadedWord"),
+          sourceKind: "upload",
+          zoomPercent: existing && existing.src === src
+            ? this.sliderToPictureZoom({ value: existing.zoomPercent }, DEFAULT_PICTURE_ZOOM_PERCENT)
+            : DEFAULT_PICTURE_ZOOM_PERCENT
+        };
+        this.refreshWordImageEditors();
+        this.closeWordImagePicker();
+      }catch{
+        this.setImagePickerLoading(false, t("ui.imagePickerUploadError"));
+      }
+    }
+
     async loadImagePickerPage(page){
       if(!this.imageService || !this.currentImagePickerEntry) return;
+
+      if(!this.currentImagePickerSources.length){
+        this.setImagePickerLoading(false, t("ui.imagePickerNoSourceSelected"));
+        return;
+      }
 
       this.currentImagePickerPage = Math.max(page, 0);
       const requestId = this.imagePickerRequestId;
@@ -512,7 +588,8 @@ window.GiocoTastiera = window.GiocoTastiera || {};
         const response = await this.imageService.fetchRealtimeImagePage(
           this.currentImagePickerEntry,
           this.currentImagePickerPage,
-          this.currentImagePickerSearchQuery
+          this.currentImagePickerSearchQuery,
+          this.currentImagePickerSources
         );
         if(requestId !== this.imagePickerRequestId) return;
         this.setImagePickerLoading(false);
@@ -560,6 +637,7 @@ window.GiocoTastiera = window.GiocoTastiera || {};
       const entry = { category, categoryLabel, word };
       this.currentImagePickerEntry = entry;
       this.currentImagePickerSearchQuery = this.imageService.getDefaultSearchQuery(entry);
+      this.currentImagePickerSources = [...DEFAULT_IMAGE_PICKER_SOURCES];
       this.imagePickerRequestId += 1;
       this.currentImagePickerPage = 0;
 
@@ -568,6 +646,7 @@ window.GiocoTastiera = window.GiocoTastiera || {};
       if(this.imagePickerSearchInput){
         this.imagePickerSearchInput.value = this.currentImagePickerSearchQuery;
       }
+      this.fillImagePickerSources(this.currentImagePickerSources);
       this.showImagePickerView();
       this.loadImagePickerPage(0);
     }
@@ -580,8 +659,8 @@ window.GiocoTastiera = window.GiocoTastiera || {};
     searchImagePicker(){
       if(!this.currentImagePickerEntry || !this.imageService) return;
 
-      const rawValue = this.imagePickerSearchInput ? this.imagePickerSearchInput.value.trim() : "";
-      this.currentImagePickerSearchQuery = rawValue || this.imageService.getDefaultSearchQuery(this.currentImagePickerEntry);
+      this.currentImagePickerSearchQuery = this.resolveCurrentImagePickerQuery();
+      this.currentImagePickerSources = this.readImagePickerSources();
       if(this.imagePickerSearchInput){
         this.imagePickerSearchInput.value = this.currentImagePickerSearchQuery;
       }
@@ -592,8 +671,12 @@ window.GiocoTastiera = window.GiocoTastiera || {};
     closeWordImagePicker(){
       this.currentImagePickerEntry = null;
       this.currentImagePickerSearchQuery = "";
+      this.currentImagePickerSources = [...DEFAULT_IMAGE_PICKER_SOURCES];
       this.imagePickerRequestId += 1;
       this.currentImagePickerPage = 0;
+      if(this.imagePickerUploadInput){
+        this.imagePickerUploadInput.value = "";
+      }
       this.setImagePickerLoading(false);
       this.showSettingsMainView();
     }
@@ -1056,7 +1139,10 @@ window.GiocoTastiera = window.GiocoTastiera || {};
             this.pictureImage.hidden = false;
             this.pictureImage.alt = t("ui.pictureAlt", { word: entry.word });
             this.pictureImage.src = image.src;
-            this.pictureImage.style.transform = `scale(${(Number(image.zoomPercent) || DEFAULT_PICTURE_ZOOM_PERCENT) / 100})`;
+            const zoomPercent = Number.isFinite(Number(image.zoomPercent))
+              ? Number(image.zoomPercent)
+              : DEFAULT_PICTURE_ZOOM_PERCENT;
+            this.pictureImage.style.transform = `scale(${zoomPercent / 100})`;
             this.pictureSource.textContent = image.source;
             return;
           }catch{

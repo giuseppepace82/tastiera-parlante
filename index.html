@@ -746,6 +746,22 @@ h1{
   background:var(--input-bg);
   text-transform:uppercase;
 }
+.image-picker-sources{
+  margin-top:18px;
+}
+.image-picker-sources-title{
+  display:block;
+  margin-bottom:10px;
+  font-weight:800;
+  text-transform:uppercase;
+  letter-spacing:0.05em;
+  color:var(--title-ink);
+}
+.image-picker-sources-group{
+  display:flex;
+  flex-wrap:wrap;
+  gap:14px;
+}
 .sr-only{
   position:absolute;
   width:1px;
@@ -1002,6 +1018,25 @@ canvas{
         <div class="image-picker-search-row">
           <input id="imagePickerSearchInput" type="text" data-i18n-placeholder="ui.imagePickerSearchPlaceholder" placeholder="Parola da cercare">
           <button id="imagePickerSearchButton" class="secondary" type="button" data-i18n="ui.imagePickerSearch">CERCA IMMAGINI</button>
+          <button id="imagePickerUploadButton" class="secondary" type="button" data-i18n="ui.imagePickerUpload">CARICA DAL DISPOSITIVO</button>
+          <input id="imagePickerUploadInput" type="file" accept="image/*" hidden>
+        </div>
+      </div>
+      <div class="image-picker-sources">
+        <span class="image-picker-sources-title" data-i18n="ui.imagePickerSourcesLabel">SORGENTI IMMAGINI</span>
+        <div class="image-picker-sources-group">
+          <label class="switch-row">
+            <input id="imagePickerSourceArasaac" type="checkbox" data-image-picker-source="arasaac">
+            <span data-i18n="ui.imagePickerSourceArasaac">ARASAAC</span>
+          </label>
+          <label class="switch-row">
+            <input id="imagePickerSourceWikipedia" type="checkbox" data-image-picker-source="wikipedia">
+            <span data-i18n="ui.imagePickerSourceWikipedia">WIKIPEDIA</span>
+          </label>
+          <label class="switch-row">
+            <input id="imagePickerSourceWikimedia" type="checkbox" data-image-picker-source="wikimedia">
+            <span data-i18n="ui.imagePickerSourceWikimedia">WIKIMEDIA COMMONS</span>
+          </label>
         </div>
       </div>
       <div id="imagePickerStatus" class="image-picker-status"></div>
@@ -1018,7 +1053,7 @@ canvas{
   </div>
 </div>
 
-<audio id="music" src="assets/sounds/musichetta_gioco_1.mp3" preload="metadata"></audio>
+<audio id="music" src="assets/sounds/musichetta_gioco_1.mp3" preload="auto"></audio>
 
 <script src="js/config/game-config.js"></script>
 <script src="js/model/game-model.js"></script>
