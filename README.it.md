@@ -34,14 +34,21 @@ Tastiera Parlante è un gioco educativo da tastiera sviluppato in HTML, CSS e Ja
 - immagine guida opzionale laterale o sotto la parola
 - dimensione di lettere e caselle configurabile
 - evidenziazione opzionale della prossima lettera da digitare
+- temi colore globali con interfaccia sempre a gradiente
 - area setup protetta da una semplice somma numerica
 - categorie di parole modificabili
 - categorie personalizzate aggiungibili e rimovibili dal setup
 - foto locali della famiglia configurabili dal setup
 - fallback su SVG generico locale per la categoria famiglia
 - ricerca realtime delle immagini per le altre categorie
+- picker immagini integrato nella stessa modale setup
+- ricerca immagini con chiave personalizzata
+- varianti automatiche per query composte
 - ARASAAC come sorgente visiva primaria
 - Wikipedia/Wikimedia come fallback
+- cache immagini persistente opzionale
+- esportazione configurazione in JSON
+- importazione configurazione da JSON
 - musichetta ed effetti di celebrazione al completamento corretto
 - ritardo della cerimonia configurabile
 - interruzione opzionale della cerimonia con click o barra spaziatrice
@@ -74,6 +81,7 @@ Il setup è attualmente organizzato in sezioni:
 - Pannello lettere
 - Immagini
 - Cerimonia
+- Configurazioni
 - Categorie
 
 Dal setup è possibile:
@@ -82,11 +90,19 @@ Dal setup è possibile:
 - regolare il volume della musica della cerimonia
 - modificare la dimensione di lettere e caselle
 - attivare o disattivare l’evidenziazione della prossima lettera da digitare
+- scegliere un tema colori globale
 - attivare o disattivare l’immagine guida
+- attivare o disattivare la cache immagini
 - scegliere la posizione dell’immagine: laterale o sotto
+- aprire un picker immagini web per ogni parola non famiglia
+- cercare immagini con una query personalizzata per parola
+- mantenere la scelta automatica o impostare un’immagine web preferita
+- regolare lo zoom dell’immagine selezionata per singola parola
 - attivare o disattivare la cerimonia finale
 - attivare o disattivare l’interruzione della cerimonia con click o barra spaziatrice
 - regolare il tempo di attesa prima della cerimonia
+- esportare la configurazione corrente in JSON
+- importare una configurazione JSON
 - attivare o disattivare le categorie base
 - modificare l’elenco delle parole per ogni categoria base
 - aggiungere categorie personalizzate
@@ -126,6 +142,10 @@ Per sintesi vocale e caricamento immagini realtime è consigliato un browser mod
 
 - Le immagini della categoria famiglia sono gestite in locale.
 - Le immagini delle altre categorie vengono cercate in tempo reale.
+- Il picker immagini resta dentro la modale setup e non apre una seconda modale sovrapposta.
+- Il picker immagini accetta una chiave di ricerca personalizzata e prova anche varianti automatiche per query multi-parola.
+- Se attivata, la cache immagini viene salvata in `localStorage`.
+- Le configurazioni importate vengono normalizzate prima di essere applicate.
 - Anche il nome delle categorie personalizzate viene usato come contesto per la ricerca immagini realtime.
 - Se manca una foto famiglia, l’app usa `assets/famiglia/generico.svg`.
 - L’interfaccia è volutamente semplice, visiva e prevedibile.

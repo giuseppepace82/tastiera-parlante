@@ -17,6 +17,7 @@ window.GiocoTastiera = window.GiocoTastiera || {};
       this.model = new GameModel();
       this.view = new GameView();
       this.imageService = new ImageService();
+      this.imageService.setCacheEnabled(this.model.settings.enableImageCache === true);
       this.view.setImageService(this.imageService);
       this.speechService = new SpeechService();
       this.celebrationTimers = [];
@@ -47,9 +48,61 @@ window.GiocoTastiera = window.GiocoTastiera || {};
       this.enableSpeech();
       this.bindEvents();
       this.applyAudioSettings();
+      this.view.applyColorTheme(this.model.settings);
       this.view.applyLetterSize(this.model.settings);
       this.view.applyPictureLayout(this.model.settings);
+      this.view.showSettingsTransferStatus("");
       this.newWord();
+    }
+
+    applySettings(nextSettings, options = {}){
+      this.model.updateSettings(nextSettings);
+      this.imageService.setCacheEnabled(this.model.settings.enableImageCache === true);
+      this.applyAudioSettings();
+      this.view.applyColorTheme(this.model.settings);
+      this.view.applyLetterSize(this.model.settings);
+      this.view.applyPictureLayout(this.model.settings);
+      if(options.refreshWord !== false){
+        this.newWord();
+      }
+    }
+
+    exportSettings(){
+      const payload = {
+        app: "tastiera-parlante",
+        exportedAt: new Date().toISOString(),
+        settings: this.model.settings
+      };
+
+      const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = "tastiera-parlante-config.json";
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      URL.revokeObjectURL(url);
+      this.view.showSettingsTransferStatus(ns.config.t("ui.settingsTransferSuccessExport"));
+    }
+
+    async importSettingsFromFile(file){
+      if(!file) return;
+
+      try{
+        const content = await file.text();
+        const parsed = JSON.parse(content);
+        const importedSettings = parsed && typeof parsed === "object" && parsed.settings ? parsed.settings : parsed;
+        this.applySettings(importedSettings, { refreshWord: true });
+        this.view.fillSettingsEditor(this.model.settings);
+        this.view.showSettingsTransferStatus(ns.config.t("ui.settingsTransferSuccessImport"));
+      }catch{
+        this.view.showSettingsTransferStatus(ns.config.t("ui.settingsTransferErrorImport"));
+      }
+
+      if(this.view.importSettingsInput){
+        this.view.importSettingsInput.value = "";
+      }
     }
 
     setupMusicGain(){
@@ -123,30 +176,46 @@ window.GiocoTastiera = window.GiocoTastiera || {};
 
         this.view.closeOverlay(this.view.lockOverlay);
         this.view.fillSettingsEditor(this.model.settings);
+        this.view.showSettingsTransferStatus("");
         this.view.openOverlay(this.view.settingsOverlay);
       });
 
       this.view.saveSettings.addEventListener("click", () => {
         const nextSettings = this.view.readSettingsEditor(createDefaultSettings, sanitizeWords, DEFAULT_LIBRARY);
-        this.model.updateSettings(nextSettings);
-        this.applyAudioSettings();
-        this.view.applyLetterSize(this.model.settings);
-        this.view.applyPictureLayout(this.model.settings);
+        this.applySettings(nextSettings, { refreshWord: true });
         this.view.closeOverlay(this.view.settingsOverlay);
-        this.newWord();
       });
 
       this.view.resetSettings.addEventListener("click", () => {
         this.model.resetSettings();
+        this.imageService.setCacheEnabled(this.model.settings.enableImageCache === true);
         this.applyAudioSettings();
+        this.view.applyColorTheme(this.model.settings);
         this.view.applyLetterSize(this.model.settings);
         this.view.applyPictureLayout(this.model.settings);
         this.view.fillSettingsEditor(this.model.settings);
+        this.view.showSettingsTransferStatus("");
       });
 
       this.view.closeSettings.addEventListener("click", () => {
         this.view.closeOverlay(this.view.settingsOverlay);
       });
+
+      if(this.view.exportSettingsButton){
+        this.view.exportSettingsButton.addEventListener("click", () => this.exportSettings());
+      }
+
+      if(this.view.importSettingsButton){
+        this.view.importSettingsButton.addEventListener("click", () => this.view.triggerImportSettingsPicker());
+      }
+
+      if(this.view.importSettingsInput){
+        this.view.importSettingsInput.addEventListener("change", event => {
+          const input = event.target;
+          const file = input && input.files ? input.files[0] : null;
+          this.importSettingsFromFile(file);
+        });
+      }
 
       window.addEventListener("click", this.onCelebrationClick, true);
       window.addEventListener("keydown", this.onKeyDown);

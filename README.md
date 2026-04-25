@@ -35,6 +35,7 @@ It is designed to help children practice letters, sounds, and guided word comple
 - optional guide image shown next to the word or below it
 - configurable letter and box size
 - optional highlight for the next expected letter
+- selectable global color themes with gradient-based UI
 - words containing spaces wrap onto a new line at the space boundary
 - setup area protected by a simple arithmetic challenge
 - editable word categories
@@ -42,10 +43,16 @@ It is designed to help children practice letters, sounds, and guided word comple
 - local family photos configurable from setup
 - generic local SVG fallback for family entries
 - realtime image search for other categories
+- single-modal image picker embedded inside setup
 - per-word web image picker for non-family categories
+- custom search query input inside the image picker
+- automatic search variants for compound queries
 - per-word image zoom, stored on the selected image itself
 - ARASAAC as primary visual source
 - Wikipedia/Wikimedia as fallback
+- optional persistent image cache
+- settings export to JSON
+- settings import from JSON
 - music and celebration effects after correct completion
 - configurable celebration delay
 - optional celebration skip via click or space bar
@@ -78,6 +85,7 @@ The setup is currently organized into sections:
 - Letter Panel
 - Images
 - Celebration
+- Configuration
 - Categories
 
 From setup, it is possible to:
@@ -86,14 +94,19 @@ From setup, it is possible to:
 - adjust celebration music volume
 - change letter and box size
 - enable or disable highlight for the next expected letter
+- choose a global color theme
 - enable or disable guide images
+- enable or disable the image cache
 - choose image position: side or bottom
 - open a per-word image picker for non-family categories
+- search images with a custom query for a specific word
 - keep automatic image choice or select a preferred web image for a specific word
 - adjust zoom for each selected image independently
 - enable or disable celebration
 - enable or disable celebration skip via click or space bar
 - adjust the delay before celebration starts
+- export the current configuration as JSON
+- import a JSON configuration
 - enable or disable default categories
 - edit the word list for each default category
 - add custom categories
@@ -133,7 +146,11 @@ For speech synthesis and live image loading, a modern browser is recommended.
 
 - Family images are handled locally.
 - Other category images are fetched in realtime.
+- The image picker stays inside the setup modal rather than opening a second modal.
 - Preferred non-family images can be chosen from setup and are then used as the first candidate for that word.
+- The image picker accepts a custom search key and also tries automatic variants for multi-word queries.
+- If enabled, image search cache is persisted in `localStorage`.
+- Imported settings are normalized before being applied.
 - Image zoom is configured per selected image, not globally.
 - Custom categories are also used as semantic context for realtime image searches.
 - If a family image is missing, the app uses `assets/famiglia/generico.svg`.

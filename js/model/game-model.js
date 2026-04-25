@@ -8,7 +8,10 @@ window.GiocoTastiera = window.GiocoTastiera || {};
     DEFAULT_LETTER_SIZE_PERCENT,
     DEFAULT_PICTURE_ZOOM_PERCENT,
     DEFAULT_ENABLED,
+    DEFAULT_COLOR_THEME,
+    DEFAULT_IMAGE_CACHE_ENABLED,
     DEFAULT_LIBRARY,
+    COLOR_THEMES,
     LETTER_SIZE_STEP_PERCENT,
     MAX_CELEBRATION_DELAY_MS,
     MAX_LETTER_SIZE_PERCENT,
@@ -211,9 +214,11 @@ window.GiocoTastiera = window.GiocoTastiera || {};
   function createDefaultSettings(){
     return {
       showPicture: true,
+      enableImageCache: DEFAULT_IMAGE_CACHE_ENABLED,
       enableCelebration: true,
       allowCelebrationSkip: true,
       highlightExpectedLetter: true,
+      colorTheme: DEFAULT_COLOR_THEME,
       letterSizePercent: DEFAULT_LETTER_SIZE_PERCENT,
       speechVolume: BASE_VOLUME_PERCENT,
       celebrationMusicVolume: BASE_VOLUME_PERCENT,
@@ -231,9 +236,13 @@ window.GiocoTastiera = window.GiocoTastiera || {};
     const next = createDefaultSettings();
     if(raw && typeof raw === "object"){
       next.showPicture = raw.showPicture !== false;
+      next.enableImageCache = raw.enableImageCache === true;
       next.enableCelebration = raw.enableCelebration !== false;
       next.allowCelebrationSkip = raw.allowCelebrationSkip !== false;
       next.highlightExpectedLetter = raw.highlightExpectedLetter !== false;
+      if(typeof raw.colorTheme === "string" && COLOR_THEMES[raw.colorTheme]){
+        next.colorTheme = raw.colorTheme;
+      }
       next.letterSizePercent = normalizeLetterSizePercent(raw.letterSizePercent);
       next.speechVolume = normalizeStoredVolume(raw.speechVolume, BASE_VOLUME_PERCENT);
       next.celebrationMusicVolume = normalizeStoredVolume(raw.celebrationMusicVolume, BASE_VOLUME_PERCENT);

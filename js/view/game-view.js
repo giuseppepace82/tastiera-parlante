@@ -5,6 +5,8 @@ window.GiocoTastiera = window.GiocoTastiera || {};
     CATEGORY_ORDER,
     CELEBRATION_MS,
     CELEBRATION_DELAY_STEP_MS,
+    COLOR_THEMES,
+    DEFAULT_COLOR_THEME,
     DEFAULT_LETTER_SIZE_PERCENT,
     DEFAULT_PICTURE_ZOOM_PERCENT,
     LETTER_SIZE_STEP_PERCENT,
@@ -38,9 +40,13 @@ window.GiocoTastiera = window.GiocoTastiera || {};
       this.setupButton = document.getElementById("setupButton");
       this.lockOverlay = document.getElementById("lockOverlay");
       this.settingsOverlay = document.getElementById("settingsOverlay");
-      this.imagePickerOverlay = document.getElementById("imagePickerOverlay");
+      this.settingsModal = this.settingsOverlay ? this.settingsOverlay.querySelector(".modal") : null;
+      this.settingsMainView = document.getElementById("settingsMainView");
+      this.imagePickerView = document.getElementById("imagePickerView");
       this.imagePickerTitle = document.getElementById("imagePickerTitle");
       this.imagePickerIntro = document.getElementById("imagePickerIntro");
+      this.imagePickerSearchInput = document.getElementById("imagePickerSearchInput");
+      this.imagePickerSearchButton = document.getElementById("imagePickerSearchButton");
       this.imagePickerStatus = document.getElementById("imagePickerStatus");
       this.imagePickerGrid = document.getElementById("imagePickerGrid");
       this.imagePickerAutomatic = document.getElementById("imagePickerAutomatic");
@@ -54,9 +60,11 @@ window.GiocoTastiera = window.GiocoTastiera || {};
       this.closeLock = document.getElementById("closeLock");
       this.settingsGrid = document.getElementById("settingsGrid");
       this.showPictureToggle = document.getElementById("showPictureToggle");
+      this.enableImageCacheToggle = document.getElementById("enableImageCacheToggle");
       this.enableCelebrationToggle = document.getElementById("enableCelebrationToggle");
       this.allowCelebrationSkipToggle = document.getElementById("allowCelebrationSkipToggle");
       this.highlightExpectedLetterToggle = document.getElementById("highlightExpectedLetterToggle");
+      this.colorThemeInputs = Array.from(document.querySelectorAll('input[name="colorTheme"]'));
       this.letterSizeRange = document.getElementById("letterSizeRange");
       this.letterSizeValue = document.getElementById("letterSizeValue");
       this.speechVolumeRange = document.getElementById("speechVolumeRange");
@@ -69,6 +77,10 @@ window.GiocoTastiera = window.GiocoTastiera || {};
       this.picturePositionBottom = document.getElementById("picturePositionBottom");
       this.customCategoryNameInput = document.getElementById("customCategoryNameInput");
       this.addCategoryButton = document.getElementById("addCategoryButton");
+      this.exportSettingsButton = document.getElementById("exportSettingsButton");
+      this.importSettingsButton = document.getElementById("importSettingsButton");
+      this.importSettingsInput = document.getElementById("importSettingsInput");
+      this.settingsTransferStatus = document.getElementById("settingsTransferStatus");
       this.saveSettings = document.getElementById("saveSettings");
       this.resetSettings = document.getElementById("resetSettings");
       this.closeSettings = document.getElementById("closeSettings");
@@ -82,8 +94,10 @@ window.GiocoTastiera = window.GiocoTastiera || {};
       this.familyPicturesEditor = null;
       this.imageService = null;
       this.currentImagePickerEntry = null;
+      this.currentImagePickerSearchQuery = "";
       this.imagePickerRequestId = 0;
       this.currentImagePickerPage = 0;
+      this.imagePickerReturnScrollTop = 0;
 
       this.buildSettingsEditor();
       this.applyI18n();
@@ -142,8 +156,20 @@ window.GiocoTastiera = window.GiocoTastiera || {};
         this.imagePickerNext.addEventListener("click", () => this.changeImagePickerPage(1));
       }
 
+      if(this.imagePickerSearchButton){
+        this.imagePickerSearchButton.addEventListener("click", () => this.searchImagePicker());
+      }
+
+      if(this.imagePickerSearchInput){
+        this.imagePickerSearchInput.addEventListener("keydown", event => {
+          if(event.key !== "Enter") return;
+          event.preventDefault();
+          this.searchImagePicker();
+        });
+      }
+
       if(this.closeImagePicker){
-        this.closeImagePicker.addEventListener("click", () => this.closeOverlay(this.imagePickerOverlay));
+        this.closeImagePicker.addEventListener("click", () => this.closeWordImagePicker());
       }
     }
 
@@ -166,6 +192,16 @@ window.GiocoTastiera = window.GiocoTastiera || {};
       const parsed = Number(input.value);
       const value = Number.isFinite(parsed) ? parsed : 0;
       output.textContent = `${(value / 1000).toFixed(value % 1000 === 0 ? 0 : 2)} s`;
+    }
+
+    showSettingsTransferStatus(message){
+      if(!this.settingsTransferStatus) return;
+      this.settingsTransferStatus.textContent = message || "";
+    }
+
+    triggerImportSettingsPicker(){
+      if(!this.importSettingsInput) return;
+      this.importSettingsInput.click();
     }
 
     volumeToSlider(volume){
@@ -423,9 +459,6 @@ window.GiocoTastiera = window.GiocoTastiera || {};
       if(this.imagePickerStatus) this.imagePickerStatus.textContent = message;
       if(this.imagePickerPrevious) this.imagePickerPrevious.disabled = true;
       if(this.imagePickerNext) this.imagePickerNext.disabled = true;
-      if(this.imagePickerOverlay){
-        this.imagePickerOverlay.classList.toggle("loading", isLoading);
-      }
     }
 
     renderImagePickerCandidates(entry, response){
@@ -452,7 +485,7 @@ window.GiocoTastiera = window.GiocoTastiera || {};
               : DEFAULT_PICTURE_ZOOM_PERCENT
           };
           this.refreshWordImageEditors();
-          this.closeOverlay(this.imagePickerOverlay);
+          this.closeWordImagePicker();
         });
 
         const preview = document.createElement("img");
@@ -476,7 +509,11 @@ window.GiocoTastiera = window.GiocoTastiera || {};
       this.setImagePickerLoading(true, t("ui.imagePickerLoading"));
 
       try{
-        const response = await this.imageService.fetchRealtimeImagePage(this.currentImagePickerEntry, this.currentImagePickerPage);
+        const response = await this.imageService.fetchRealtimeImagePage(
+          this.currentImagePickerEntry,
+          this.currentImagePickerPage,
+          this.currentImagePickerSearchQuery
+        );
         if(requestId !== this.imagePickerRequestId) return;
         this.setImagePickerLoading(false);
         this.renderImagePickerCandidates(this.currentImagePickerEntry, response);
@@ -486,17 +523,52 @@ window.GiocoTastiera = window.GiocoTastiera || {};
       }
     }
 
+    showImagePickerView(){
+      if(this.settingsModal){
+        this.imagePickerReturnScrollTop = this.settingsModal.scrollTop;
+      }
+      if(this.settingsMainView){
+        this.settingsMainView.hidden = true;
+      }
+      if(this.imagePickerView){
+        this.imagePickerView.hidden = false;
+      }
+      if(this.settingsModal){
+        this.settingsModal.scrollTop = 0;
+      }
+      if(this.imagePickerSearchInput){
+        this.imagePickerSearchInput.focus();
+        this.imagePickerSearchInput.select();
+      }
+    }
+
+    showSettingsMainView(restoreScroll = true){
+      if(this.settingsMainView){
+        this.settingsMainView.hidden = false;
+      }
+      if(this.imagePickerView){
+        this.imagePickerView.hidden = true;
+      }
+      if(restoreScroll && this.settingsModal){
+        this.settingsModal.scrollTop = this.imagePickerReturnScrollTop;
+      }
+    }
+
     async openWordImagePicker(category, word, categoryLabel){
       if(!this.imageService) return;
 
       const entry = { category, categoryLabel, word };
       this.currentImagePickerEntry = entry;
+      this.currentImagePickerSearchQuery = this.imageService.getDefaultSearchQuery(entry);
       this.imagePickerRequestId += 1;
       this.currentImagePickerPage = 0;
 
       this.imagePickerTitle.textContent = `${t("ui.imagePickerTitle")} • ${word.toUpperCase()}`;
       this.imagePickerIntro.textContent = t("ui.imagePickerIntro");
-      this.openOverlay(this.imagePickerOverlay);
+      if(this.imagePickerSearchInput){
+        this.imagePickerSearchInput.value = this.currentImagePickerSearchQuery;
+      }
+      this.showImagePickerView();
       this.loadImagePickerPage(0);
     }
 
@@ -505,10 +577,31 @@ window.GiocoTastiera = window.GiocoTastiera || {};
       this.loadImagePickerPage(this.currentImagePickerPage + delta);
     }
 
+    searchImagePicker(){
+      if(!this.currentImagePickerEntry || !this.imageService) return;
+
+      const rawValue = this.imagePickerSearchInput ? this.imagePickerSearchInput.value.trim() : "";
+      this.currentImagePickerSearchQuery = rawValue || this.imageService.getDefaultSearchQuery(this.currentImagePickerEntry);
+      if(this.imagePickerSearchInput){
+        this.imagePickerSearchInput.value = this.currentImagePickerSearchQuery;
+      }
+      this.imagePickerRequestId += 1;
+      this.loadImagePickerPage(0);
+    }
+
+    closeWordImagePicker(){
+      this.currentImagePickerEntry = null;
+      this.currentImagePickerSearchQuery = "";
+      this.imagePickerRequestId += 1;
+      this.currentImagePickerPage = 0;
+      this.setImagePickerLoading(false);
+      this.showSettingsMainView();
+    }
+
     clearCurrentWordImageSelection(){
       if(!this.currentImagePickerEntry) return;
       this.clearWordImageSelection(this.currentImagePickerEntry.category, this.currentImagePickerEntry.word);
-      this.closeOverlay(this.imagePickerOverlay);
+      this.closeWordImagePicker();
     }
 
     clearWordImageSelection(category, word){
@@ -811,6 +904,19 @@ window.GiocoTastiera = window.GiocoTastiera || {};
       document.documentElement.style.setProperty("--letter-scale", String(scale));
     }
 
+    applyColorTheme(settings){
+      const themeId = settings && typeof settings.colorTheme === "string" && COLOR_THEMES[settings.colorTheme]
+        ? settings.colorTheme
+        : DEFAULT_COLOR_THEME;
+      const theme = COLOR_THEMES[themeId] || COLOR_THEMES[DEFAULT_COLOR_THEME];
+      if(!theme) return;
+
+      document.documentElement.dataset.colorTheme = themeId;
+      for(const [token, value] of Object.entries(theme)){
+        document.documentElement.style.setProperty(`--${token.replace(/[A-Z]/g, match => `-${match.toLowerCase()}`)}`, value);
+      }
+    }
+
     renderTypedBar(wordLayout, insertedLetters, currentIndex, settings){
       this.typedDiv.innerHTML = "";
 
@@ -965,6 +1071,11 @@ window.GiocoTastiera = window.GiocoTastiera || {};
     }
 
     fillSettingsEditor(settings){
+      this.currentImagePickerEntry = null;
+      this.currentImagePickerSearchQuery = "";
+      this.currentImagePickerPage = 0;
+      this.showSettingsMainView(false);
+      this.setImagePickerLoading(false);
       this.familyPictureDrafts = Object.assign({}, settings.familyPictures || {});
       this.preferredWordImagesDraft = Object.fromEntries(
         Object.entries(settings.preferredWordImages || {}).map(([key, value]) => [key, Object.assign({}, value)])
@@ -978,9 +1089,13 @@ window.GiocoTastiera = window.GiocoTastiera || {};
         }))
         : [];
       this.showPictureToggle.checked = settings.showPicture;
+      this.enableImageCacheToggle.checked = settings.enableImageCache === true;
       this.enableCelebrationToggle.checked = settings.enableCelebration !== false;
       this.allowCelebrationSkipToggle.checked = settings.allowCelebrationSkip !== false;
       this.highlightExpectedLetterToggle.checked = settings.highlightExpectedLetter !== false;
+      for(const input of this.colorThemeInputs){
+        input.checked = input.value === (settings.colorTheme || DEFAULT_COLOR_THEME);
+      }
       this.letterSizeRange.value = this.letterSizeToSlider(settings.letterSizePercent);
       this.speechVolumeRange.value = this.volumeToSlider(settings.speechVolume);
       this.celebrationMusicVolumeRange.value = this.volumeToSlider(settings.celebrationMusicVolume);
@@ -1006,9 +1121,14 @@ window.GiocoTastiera = window.GiocoTastiera || {};
     readSettingsEditor(defaultSettingsFactory, sanitizeWords, defaultLibrary){
       const next = defaultSettingsFactory();
       next.showPicture = this.showPictureToggle.checked;
+      next.enableImageCache = Boolean(this.enableImageCacheToggle && this.enableImageCacheToggle.checked);
       next.enableCelebration = this.enableCelebrationToggle.checked;
       next.allowCelebrationSkip = this.allowCelebrationSkipToggle.checked;
       next.highlightExpectedLetter = this.highlightExpectedLetterToggle.checked;
+      const selectedColorTheme = this.colorThemeInputs.find(input => input.checked);
+      next.colorTheme = selectedColorTheme && COLOR_THEMES[selectedColorTheme.value]
+        ? selectedColorTheme.value
+        : DEFAULT_COLOR_THEME;
       next.letterSizePercent = this.sliderToLetterSize(this.letterSizeRange, next.letterSizePercent);
       next.speechVolume = this.sliderToVolume(this.speechVolumeRange, next.speechVolume);
       next.celebrationMusicVolume = this.sliderToVolume(this.celebrationMusicVolumeRange, next.celebrationMusicVolume);

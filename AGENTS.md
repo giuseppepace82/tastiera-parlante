@@ -133,11 +133,15 @@ Regole attuali:
 - fallback secondario: `Wikipedia/Wikimedia`
 - quando una parola è ambigua, la ricerca deve includere anche la categoria
   - esempio: `RISO` categoria `CIBO` non deve essere interpretato come sorriso/risata
+- il picker immagini deve restare sempre dentro la modale setup già aperta; evitare modali sovrapposte
 - se un’immagine non si carica, il sistema deve tentare automaticamente altri candidati prima di mostrare fallback o errore
 - per le categorie personalizzate, nelle ricerche realtime il nome della categoria deve essere usato come contesto semantico aggiuntivo
 - per ogni parola non `famiglia` è possibile scegliere dal setup una specifica immagine web da usare come candidata prioritaria
 - la selezione immagini per parola è raccolta in accordion chiusi di default
 - nel picker immagini è possibile sfogliare più pagine di risultati recuperati dal web
+- nel picker immagini l’utente può inserire una chiave di ricerca personalizzata oltre alla query predefinita della parola
+- la ricerca realtime deve provare varianti automatiche della query composta quando utile
+- è possibile attivare una cache persistente delle ricerche immagini dal setup
 - lo zoom dell’immagine è configurato sulla singola immagine selezionata, non come impostazione globale
 
 ---
@@ -159,6 +163,7 @@ Funzioni attuali del setup:
   - Pannello lettere
   - Immagini
   - Cerimonia
+  - Configurazioni
   - Categorie
 - sezione Audio:
   - regolare il volume del parlato
@@ -166,18 +171,24 @@ Funzioni attuali del setup:
 - sezione Pannello lettere:
   - regolare la dimensione di lettere e caselle
   - attivare o disattivare l’evidenziazione della prossima lettera da digitare
+  - scegliere un tema colori globale con gradiente
 - sezione Immagini:
   - attivare o disattivare la visualizzazione dell’immagine guida
+  - attivare o disattivare la cache immagini
   - scegliere la posizione dell’immagine:
     - laterale
     - sotto alle parole
   - per ogni parola non `famiglia`, aprire un picker immagini web
+  - cercare immagini con query personalizzata
   - scegliere o ripristinare la selezione automatica dell’immagine per singola parola
   - regolare lo zoom della singola immagine selezionata
 - sezione Cerimonia:
   - attivare o disattivare la cerimonia finale
   - attivare o disattivare l’interruzione della cerimonia tramite click o barra spaziatrice
   - regolare il tempo di attesa prima dell’avvio della cerimonia
+- sezione Configurazioni:
+  - esportare la configurazione corrente in JSON
+  - importare una configurazione JSON
 - sezione Categorie:
   - attivare o disattivare singole categorie baseline
   - modificare l’elenco delle parole per categoria
@@ -206,6 +217,7 @@ Categorie personalizzate:
 
 Persistenza:
 - le impostazioni vengono salvate in `localStorage`
+- la cache immagini, se attivata, viene salvata in `localStorage`
 
 ---
 
@@ -240,6 +252,7 @@ Separazione delle responsabilità:
   - coordinamento tra model, view e services
 - `services`:
   - recupero immagini realtime
+  - cache immagini persistente opzionale
   - gestione sintesi vocale
 
 Nota tecnica importante:
@@ -247,6 +260,7 @@ Nota tecnica importante:
 - evitare di riportare logica applicativa inline dentro `index.html`
 - le configurazioni UI del setup devono riflettere sempre la struttura funzionale reale del gioco, non solo lo stato tecnico del codice
 - il pannello di composizione attivo è `#typed`; il vecchio contenitore `#boxes` non fa più parte della UI
+- import ed export configurazioni devono passare dalla normalizzazione del model prima di essere applicati
 
 ---
 
