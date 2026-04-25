@@ -12,6 +12,8 @@ window.GiocoTastiera = window.GiocoTastiera || {};
     DEFAULT_LETTER_SIZE_PERCENT,
     DEFAULT_PICTURE_PANEL_SIZE_PERCENT,
     DEFAULT_PICTURE_ZOOM_PERCENT,
+    GAMEPLAY_KEYBOARD_CONSONANTS,
+    GAMEPLAY_KEYBOARD_VOWELS,
     LETTER_SIZE_STEP_PERCENT,
     MAX_CELEBRATION_DELAY_MS,
     MAX_CELEBRATION_DURATION_MS,
@@ -49,6 +51,10 @@ window.GiocoTastiera = window.GiocoTastiera || {};
       this.pictureInfoTooltip = document.getElementById("pictureInfoTooltip");
       this.picturePlaceholder = document.getElementById("picturePlaceholder");
       this.pictureImage = document.getElementById("pictureImage");
+      this.gameplayKeyboard = document.getElementById("gameplayKeyboard");
+      this.vowelKeyboardGrid = document.getElementById("vowelKeyboardGrid");
+      this.consonantKeyboardGrid = document.getElementById("consonantKeyboardGrid");
+      this.celebrationSkipButton = document.getElementById("celebrationSkipButton");
       this.setupButton = document.getElementById("setupButton");
       this.lockOverlay = document.getElementById("lockOverlay");
       this.settingsOverlay = document.getElementById("settingsOverlay");
@@ -98,6 +104,8 @@ window.GiocoTastiera = window.GiocoTastiera || {};
       this.picturePositionBottom = document.getElementById("picturePositionBottom");
       this.customCategoryNameInput = document.getElementById("customCategoryNameInput");
       this.addCategoryButton = document.getElementById("addCategoryButton");
+      this.installAppButton = document.getElementById("installAppButton");
+      this.installHint = document.getElementById("installHint");
       this.exportSettingsButton = document.getElementById("exportSettingsButton");
       this.importSettingsButton = document.getElementById("importSettingsButton");
       this.importSettingsInput = document.getElementById("importSettingsInput");
@@ -105,6 +113,8 @@ window.GiocoTastiera = window.GiocoTastiera || {};
       this.saveSettings = document.getElementById("saveSettings");
       this.resetSettings = document.getElementById("resetSettings");
       this.closeSettings = document.getElementById("closeSettings");
+      this.touchStartOverlay = document.getElementById("touchStartOverlay");
+      this.touchStartButton = document.getElementById("touchStartButton");
       this.fxCanvas = document.getElementById("fx");
       this.fxCtx = this.fxCanvas.getContext("2d");
       this.fxState = null;
@@ -121,8 +131,12 @@ window.GiocoTastiera = window.GiocoTastiera || {};
       this.imagePickerRequestId = 0;
       this.currentImagePickerPage = 0;
       this.imagePickerReturnScrollTop = 0;
+      this.deviceMode = { isTouchPrimary: false, isTabletLayout: false, isPortrait: false };
+      this.boundKeyboardHandler = null;
+      this.keyboardButtons = new Map();
 
       this.buildSettingsEditor();
+      this.buildGameplayKeyboard();
       this.applyI18n();
       this.bindSettingsInputs();
       this.resizeCanvas();
@@ -227,6 +241,152 @@ window.GiocoTastiera = window.GiocoTastiera || {};
       if(this.closeImagePicker){
         this.closeImagePicker.addEventListener("click", () => this.closeWordImagePicker());
       }
+    }
+
+    buildGameplayKeyboard(){
+      if(this.vowelKeyboardGrid){
+        this.renderKeyboardGroup(this.vowelKeyboardGrid, GAMEPLAY_KEYBOARD_VOWELS, "vowel");
+      }
+      if(this.consonantKeyboardGrid){
+        this.renderKeyboardGroup(this.consonantKeyboardGrid, GAMEPLAY_KEYBOARD_CONSONANTS, "consonant");
+      }
+    }
+
+    renderKeyboardGroup(container, letters, variant){
+      container.innerHTML = "";
+      for(const letter of letters){
+        const button = document.createElement("button");
+        button.type = "button";
+        button.className = `key-button ${variant}`;
+        button.dataset.letter = letter;
+        button.textContent = letter;
+        container.appendChild(button);
+        this.keyboardButtons.set(letter, button);
+      }
+    }
+
+    bindGameplayKeyboard(handler){
+      this.boundKeyboardHandler = handler;
+      for(const button of this.keyboardButtons.values()){
+        button.addEventListener("click", () => {
+          if(typeof this.boundKeyboardHandler === "function"){
+            this.boundKeyboardHandler(button.dataset.letter || "");
+          }
+        });
+      }
+    }
+
+    setDeviceMode(deviceMode = {}){
+      this.deviceMode = {
+        isTouchPrimary: deviceMode.isTouchPrimary === true,
+        isTabletLayout: deviceMode.isTabletLayout === true,
+        isPortrait: deviceMode.isPortrait === true
+      };
+
+      document.body.classList.toggle("touch-primary", this.deviceMode.isTouchPrimary);
+      document.body.classList.toggle("tablet-layout", this.deviceMode.isTabletLayout);
+      document.body.classList.toggle("portrait-layout", this.deviceMode.isPortrait);
+      this.applyResponsiveGameLayout(this.deviceMode);
+    }
+
+    applyResponsiveGameLayout(deviceMode = this.deviceMode){
+      const useKeyboard = Boolean(deviceMode && deviceMode.isTouchPrimary);
+      if(this.gameplayKeyboard){
+        this.gameplayKeyboard.hidden = !useKeyboard;
+        this.gameplayKeyboard.classList.toggle("visible", useKeyboard);
+      }
+      if(this.celebrationSkipButton){
+        this.celebrationSkipButton.classList.toggle("visible", false);
+      }
+      this.updateOverlayViewportHeight();
+    }
+
+    setGameplayKeyboardEnabled(enabled){
+      for(const button of this.keyboardButtons.values()){
+        button.disabled = enabled === false;
+      }
+    }
+
+    setCelebrationSkipVisible(visible){
+      if(!this.celebrationSkipButton) return;
+      this.celebrationSkipButton.classList.toggle("visible", visible === true);
+    }
+
+    bindCelebrationSkip(handler){
+      if(!this.celebrationSkipButton) return;
+      this.celebrationSkipButton.addEventListener("click", () => {
+        if(typeof handler === "function"){
+          handler();
+        }
+      });
+    }
+
+    setKeyboardExpectedLetter(letter, enabled = true){
+      for(const button of this.keyboardButtons.values()){
+        button.classList.remove("expected");
+      }
+      if(!enabled || !letter) return;
+      const nextButton = this.keyboardButtons.get(stripAccents(letter).toUpperCase());
+      if(nextButton){
+        nextButton.classList.add("expected");
+      }
+    }
+
+    flashKeyboardKey(letter, state){
+      const target = this.keyboardButtons.get(stripAccents(letter).toUpperCase());
+      if(!target) return;
+
+      const className = state === "wrong" ? "wrong" : "pressed";
+      target.classList.remove(className);
+      void target.offsetWidth;
+      target.classList.add(className);
+      window.setTimeout(() => target.classList.remove(className), state === "wrong" ? 320 : 160);
+    }
+
+    showTouchStartGate(){
+      if(!this.touchStartOverlay) return;
+      this.touchStartOverlay.classList.add("open");
+      this.touchStartOverlay.setAttribute("aria-hidden", "false");
+    }
+
+    hideTouchStartGate(){
+      if(!this.touchStartOverlay) return;
+      this.touchStartOverlay.classList.remove("open");
+      this.touchStartOverlay.setAttribute("aria-hidden", "true");
+    }
+
+    bindTouchStart(handler){
+      if(!this.touchStartButton) return;
+      this.touchStartButton.addEventListener("click", () => {
+        if(typeof handler === "function"){
+          handler();
+        }
+      });
+    }
+
+    setInstallAvailability(canInstall, isIosLike){
+      if(this.installAppButton){
+        this.installAppButton.disabled = !canInstall;
+      }
+      if(this.installHint){
+        this.installHint.textContent = isIosLike
+          ? t("ui.installIosHint")
+          : (canInstall ? "" : t("ui.installUnavailable"));
+      }
+    }
+
+    bindInstallPrompt(handler){
+      if(!this.installAppButton) return;
+      this.installAppButton.addEventListener("click", () => {
+        if(typeof handler === "function"){
+          handler();
+        }
+      });
+    }
+
+    updateOverlayViewportHeight(){
+      const viewportHeight = window.visualViewport ? window.visualViewport.height : window.innerHeight;
+      document.documentElement.style.setProperty("--overlay-viewport-height", `${Math.round(viewportHeight - 16)}px`);
     }
 
     setImageService(imageService){
@@ -1679,12 +1839,16 @@ window.GiocoTastiera = window.GiocoTastiera || {};
         box.classList.remove("expected");
       }
 
+      this.setKeyboardExpectedLetter("", false);
       if(!enabled) return;
 
       const nextLetter = this.wordDiv.querySelector(`[data-playable-index="${index}"]`);
       const nextBox = this.typedDiv.querySelector(`[data-playable-index="${index}"]`);
       if(nextLetter) nextLetter.classList.add("expected");
       if(nextBox) nextBox.classList.add("expected");
+
+      const nextLetterText = nextLetter ? nextLetter.textContent : "";
+      this.setKeyboardExpectedLetter(nextLetterText, enabled);
     }
 
     renderWord(entry, wordLayout, settings){
@@ -1956,6 +2120,7 @@ window.GiocoTastiera = window.GiocoTastiera || {};
     }
 
     openOverlay(overlay){
+      this.updateOverlayViewportHeight();
       overlay.classList.add("open");
       overlay.setAttribute("aria-hidden", "false");
     }
@@ -2000,6 +2165,7 @@ window.GiocoTastiera = window.GiocoTastiera || {};
     resizeCanvas(){
       this.fxCanvas.width = window.innerWidth;
       this.fxCanvas.height = window.innerHeight;
+      this.updateOverlayViewportHeight();
     }
 
     createConfetti(){
