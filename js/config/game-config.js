@@ -53,6 +53,7 @@ window.GiocoTastiera = window.GiocoTastiera || {};
         celebrationMusicVolume: "Volume musica cerimonia",
         celebrationDelay: "Attesa prima della cerimonia",
         letterSize: "Dimensione lettere",
+        pictureZoom: "Zoom immagine",
         picturePositionTitle: "Posizione immagine",
         picturePositionSide: "Laterale",
         picturePositionBottom: "Sotto le parole",
@@ -62,6 +63,19 @@ window.GiocoTastiera = window.GiocoTastiera || {};
         removeCategory: "Rimuovi categoria",
         customCategoryName: "Nome categoria",
         customCategoryWords: "Parole della categoria",
+        wordImagesTitle: "Immagini per parola",
+        selectWordImage: "Scegli immagine",
+        changeWordImage: "Cambia immagine",
+        clearWordImage: "Ripristina automatico",
+        wordImageAutomatic: "Selezione automatica",
+        wordImageSelected: "Immagine scelta dal setup",
+        imagePickerTitle: "Seleziona immagine",
+        imagePickerIntro: "Scegli l'immagine da usare per questa parola.",
+        imagePickerLoading: "Caricamento immagini in corso",
+        imagePickerEmpty: "Nessuna immagine disponibile per questa parola",
+        imagePickerUseAutomatic: "Usa selezione automatica",
+        imagePickerPrevious: "Immagini precedenti",
+        imagePickerNext: "Altre immagini",
         familyInlineNote: "Per ogni voce della famiglia puoi scegliere una foto dal dispositivo. Se non imposti una foto, verrà usato l'SVG generico.",
         familyPicturesChoose: "Scegli foto",
         familyPicturesChange: "Cambia foto",
@@ -75,7 +89,8 @@ window.GiocoTastiera = window.GiocoTastiera || {};
         imageSourceArasaac: "Pittogramma • ARASAAC • {term} • ID {id}",
         imageSourceWikipedia: "Web • Wikipedia • {title} • {width}x{height}",
         imageSourceLocalFamily: "Foto locale • Famiglia",
-        imageSourceFallbackFamily: "SVG generico • Famiglia"
+        imageSourceFallbackFamily: "SVG generico • Famiglia",
+        imageSourcePreferred: "Scelta nel setup • {source}"
       }
     }
   };
@@ -170,6 +185,10 @@ window.GiocoTastiera = window.GiocoTastiera || {};
     MIN_LETTER_SIZE_PERCENT: 75,
     MAX_LETTER_SIZE_PERCENT: 140,
     LETTER_SIZE_STEP_PERCENT: 5,
+    DEFAULT_PICTURE_ZOOM_PERCENT: 100,
+    MIN_PICTURE_ZOOM_PERCENT: 100,
+    MAX_PICTURE_ZOOM_PERCENT: 180,
+    PICTURE_ZOOM_STEP_PERCENT: 5,
     SPEECH_VOLUME_BOOST: 1.35,
     MUSIC_START_DELAY_MS: 2000,
     MIN_CELEBRATION_DELAY_MS: 0,

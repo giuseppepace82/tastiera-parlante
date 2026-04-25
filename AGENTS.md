@@ -31,12 +31,12 @@ Il focus NON è la performance ma:
 
 1. Viene scelta una parola casuale da un array
 2. La parola viene mostrata in alto (MAIUSCOLA, con accenti)
-3. Sotto vengono mostrate caselle vuote (una per lettera)
+3. Sotto viene mostrato il pannello di composizione della parola, con una casella per ogni lettera
 4. Il bambino digita lettere sulla tastiera
 
 ### Regole:
 - Lettera corretta:
-  - viene inserita nella casella
+  - viene inserita nella casella corrispondente del pannello di composizione
   - viene pronunciata
 - Lettera sbagliata:
   - viene pronunciata
@@ -50,6 +50,7 @@ Quando la parola è completa:
 1. viene pronunciata tutta la parola
 2. dopo un breve ritardo parte una celebrazione visiva + musicale
 3. viene caricata una nuova parola al termine della celebrazione
+4. la parola completata resta visibile fino al caricamento della successiva
 
 ---
 
@@ -61,18 +62,19 @@ Quando la parola è completa:
 
 Applicato a:
 - lettere parola
-- caselle
+- caselle del pannello di composizione
 - lettera digitata
 
 ### UI:
 - Tutto in MAIUSCOLO
 - Casella attiva → bordo GIALLO
-- Prossima lettera attesa → evidenziazione opzionale su lettera in alto + casella corrispondente
+- Prossima lettera attesa → evidenziazione opzionale su lettera in alto + casella corrispondente nel pannello `typed`
 - Layout perfettamente allineato (grid)
 - immagine guida opzionale
 - layout immagine configurabile:
   - laterale
   - sotto alle parole
+- le parole che contengono spazi devono andare a capo nel punto dello spazio sia nella parola mostrata sia nel pannello di composizione
 - durante il cambio immagine deve essere mostrato uno spinner
 - il pannello lettere può essere scalato da setup
 - il pannello di gioco e il pannello immagine devono restare visivamente allineati in altezza nel layout desktop
@@ -133,6 +135,10 @@ Regole attuali:
   - esempio: `RISO` categoria `CIBO` non deve essere interpretato come sorriso/risata
 - se un’immagine non si carica, il sistema deve tentare automaticamente altri candidati prima di mostrare fallback o errore
 - per le categorie personalizzate, nelle ricerche realtime il nome della categoria deve essere usato come contesto semantico aggiuntivo
+- per ogni parola non `famiglia` è possibile scegliere dal setup una specifica immagine web da usare come candidata prioritaria
+- la selezione immagini per parola è raccolta in accordion chiusi di default
+- nel picker immagini è possibile sfogliare più pagine di risultati recuperati dal web
+- lo zoom dell’immagine è configurato sulla singola immagine selezionata, non come impostazione globale
 
 ---
 
@@ -165,6 +171,9 @@ Funzioni attuali del setup:
   - scegliere la posizione dell’immagine:
     - laterale
     - sotto alle parole
+  - per ogni parola non `famiglia`, aprire un picker immagini web
+  - scegliere o ripristinare la selezione automatica dell’immagine per singola parola
+  - regolare lo zoom della singola immagine selezionata
 - sezione Cerimonia:
   - attivare o disattivare la cerimonia finale
   - attivare o disattivare l’interruzione della cerimonia tramite click o barra spaziatrice
@@ -237,16 +246,17 @@ Nota tecnica importante:
 - il caricamento JS è basato su script classici separati, non su ES modules
 - evitare di riportare logica applicativa inline dentro `index.html`
 - le configurazioni UI del setup devono riflettere sempre la struttura funzionale reale del gioco, non solo lo stato tecnico del codice
+- il pannello di composizione attivo è `#typed`; il vecchio contenitore `#boxes` non fa più parte della UI
 
 ---
 
 ## 🎉 Celebrazione
 
 Al completamento corretto della parola:
-- si svuota la barra delle lettere inserite
 - viene pronunciata la parola completa
 - parte la musichetta finale
 - parte una celebrazione grafica sincronizzata
+- la parola completata resta visibile fino alla successiva
 
 Elementi grafici della celebrazione:
 - coriandoli

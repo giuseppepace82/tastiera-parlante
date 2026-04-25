@@ -6,14 +6,18 @@ window.GiocoTastiera = window.GiocoTastiera || {};
     CELEBRATION_DELAY_STEP_MS,
     CATEGORY_ORDER,
     DEFAULT_LETTER_SIZE_PERCENT,
+    DEFAULT_PICTURE_ZOOM_PERCENT,
     DEFAULT_ENABLED,
     DEFAULT_LIBRARY,
     LETTER_SIZE_STEP_PERCENT,
     MAX_CELEBRATION_DELAY_MS,
     MAX_LETTER_SIZE_PERCENT,
+    MAX_PICTURE_ZOOM_PERCENT,
     MAX_VOLUME_PERCENT,
     MIN_LETTER_SIZE_PERCENT,
+    MIN_PICTURE_ZOOM_PERCENT,
     MIN_CELEBRATION_DELAY_MS,
+    PICTURE_ZOOM_STEP_PERCENT,
     STORAGE_KEY
   } = ns.config;
 
@@ -46,6 +50,10 @@ window.GiocoTastiera = window.GiocoTastiera || {};
     return slugify(value).replace(/-/g, "");
   }
 
+  function wordImageKey(category, word){
+    return `${slugify(category)}:${slugify(word)}`;
+  }
+
   function normalizeFamilyPictures(rawPictures, familyWords){
     const next = {};
     const allowedKeys = new Set(familyWords.map(familyPictureKey).filter(Boolean));
@@ -56,6 +64,32 @@ window.GiocoTastiera = window.GiocoTastiera || {};
       if(!allowedKeys.has(key)) continue;
       if(typeof rawValue !== "string" || !rawValue.startsWith("data:image/")) continue;
       next[key] = rawValue;
+    }
+
+    return next;
+  }
+
+  function normalizePreferredWordImages(rawImages, availableEntries){
+    const next = {};
+    if(!rawImages || typeof rawImages !== "object") return next;
+
+    const allowedKeys = new Set(
+      availableEntries
+        .filter(entry => entry.category !== "famiglia")
+        .map(entry => wordImageKey(entry.category, entry.word))
+    );
+
+    for(const [key, value] of Object.entries(rawImages)){
+      if(!allowedKeys.has(key)) continue;
+      if(!value || typeof value !== "object") continue;
+      if(typeof value.src !== "string" || !value.src) continue;
+
+      next[key] = {
+        src: value.src,
+        source: typeof value.source === "string" ? value.source : "",
+        sourceKind: typeof value.sourceKind === "string" ? value.sourceKind : "preferred",
+        zoomPercent: normalizePictureZoomPercent(value.zoomPercent)
+      };
     }
 
     return next;
@@ -98,6 +132,42 @@ window.GiocoTastiera = window.GiocoTastiera || {};
     if(!Number.isFinite(parsed)) return DEFAULT_LETTER_SIZE_PERCENT;
     const clamped = Math.min(Math.max(parsed, MIN_LETTER_SIZE_PERCENT), MAX_LETTER_SIZE_PERCENT);
     return Math.round(clamped / LETTER_SIZE_STEP_PERCENT) * LETTER_SIZE_STEP_PERCENT;
+  }
+
+  function normalizePictureZoomPercent(value){
+    const parsed = Number(value);
+    if(!Number.isFinite(parsed)) return DEFAULT_PICTURE_ZOOM_PERCENT;
+    const clamped = Math.min(Math.max(parsed, MIN_PICTURE_ZOOM_PERCENT), MAX_PICTURE_ZOOM_PERCENT);
+    return Math.round(clamped / PICTURE_ZOOM_STEP_PERCENT) * PICTURE_ZOOM_STEP_PERCENT;
+  }
+
+  function buildWordLayout(word){
+    const displayWord = String(word || "").toUpperCase();
+    const normalizedDisplayWord = stripAccents(displayWord);
+    const slots = [];
+    const playableLetters = [];
+
+    for(let index = 0; index < displayWord.length; index += 1){
+      const visibleLetter = displayWord[index];
+      const normalizedLetter = normalizedDisplayWord[index];
+
+      if(visibleLetter === " "){
+        slots.push({ kind: "break" });
+        continue;
+      }
+
+      const playableIndex = playableLetters.length;
+      const letterData = { visibleLetter, base: normalizedLetter, playableIndex };
+      playableLetters.push(letterData);
+      slots.push({ kind: "letter", ...letterData });
+    }
+
+    return {
+      displayWord,
+      slots,
+      playableLetters,
+      normalizedWord: playableLetters.map(letter => letter.base).join("")
+    };
   }
 
   function normalizeCustomCategories(rawCategories){
@@ -152,6 +222,7 @@ window.GiocoTastiera = window.GiocoTastiera || {};
       enabledCategories: deepClone(DEFAULT_ENABLED),
       categories: deepClone(DEFAULT_LIBRARY),
       customCategories: [],
+      preferredWordImages: {},
       familyPictures: {}
     };
   }
@@ -180,6 +251,18 @@ window.GiocoTastiera = window.GiocoTastiera || {};
       }
 
       next.customCategories = normalizeCustomCategories(raw.customCategories);
+      const availableEntries = [];
+      for(const category of CATEGORY_ORDER){
+        for(const word of next.categories[category]){
+          availableEntries.push({ category, word });
+        }
+      }
+      for(const category of next.customCategories){
+        for(const word of category.words){
+          availableEntries.push({ category: category.id, word });
+        }
+      }
+      next.preferredWordImages = normalizePreferredWordImages(raw.preferredWordImages, availableEntries);
       next.familyPictures = normalizeFamilyPictures(raw.familyPictures, next.categories.famiglia);
     }
 
@@ -197,6 +280,7 @@ window.GiocoTastiera = window.GiocoTastiera || {};
     constructor(){
       this.settings = this.loadSettings();
       this.currentEntry = null;
+      this.wordLayout = buildWordLayout("");
       this.normalizedWord = "";
       this.currentIndex = 0;
       this.insertedLetters = [];
@@ -252,7 +336,8 @@ window.GiocoTastiera = window.GiocoTastiera || {};
       this.lastWordKey = `${selection.category}:${selection.word}`;
       this.currentIndex = 0;
       this.insertedLetters = [];
-      this.normalizedWord = stripAccents(selection.word.toUpperCase());
+      this.wordLayout = buildWordLayout(selection.word);
+      this.normalizedWord = this.wordLayout.normalizedWord;
       return selection;
     }
 
@@ -282,7 +367,7 @@ window.GiocoTastiera = window.GiocoTastiera || {};
         return { accepted: false, reason: "wrong", base };
       }
 
-      const visibleLetter = this.currentEntry.word.toUpperCase()[this.currentIndex];
+      const visibleLetter = this.wordLayout.playableLetters[this.currentIndex].visibleLetter;
       this.insertedLetters.push(visibleLetter);
       this.currentIndex += 1;
 
@@ -319,6 +404,8 @@ window.GiocoTastiera = window.GiocoTastiera || {};
     stripAccents,
     slugify,
     familyPictureKey,
-    colorForChar
+    wordImageKey,
+    colorForChar,
+    buildWordLayout
   };
 })(window.GiocoTastiera);

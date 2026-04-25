@@ -6,22 +6,25 @@ window.GiocoTastiera = window.GiocoTastiera || {};
     CELEBRATION_MS,
     CELEBRATION_DELAY_STEP_MS,
     DEFAULT_LETTER_SIZE_PERCENT,
+    DEFAULT_PICTURE_ZOOM_PERCENT,
     LETTER_SIZE_STEP_PERCENT,
     MAX_CELEBRATION_DELAY_MS,
     MAX_LETTER_SIZE_PERCENT,
+    MAX_PICTURE_ZOOM_PERCENT,
     MAX_VOLUME_PERCENT,
     MIN_LETTER_SIZE_PERCENT,
+    MIN_PICTURE_ZOOM_PERCENT,
     MIN_CELEBRATION_DELAY_MS,
+    PICTURE_ZOOM_STEP_PERCENT,
     getCategoryLabel,
     getLocale,
     t
   } = ns.config;
-  const { colorForChar, familyPictureKey, sanitizeWords: sanitizeWordList, stripAccents } = ns.model;
+  const { colorForChar, familyPictureKey, sanitizeWords: sanitizeWordList, stripAccents, wordImageKey } = ns.model;
 
   class GameView {
     constructor(){
       this.wordDiv = document.getElementById("word");
-      this.boxDiv = document.getElementById("boxes");
       this.typedDiv = document.getElementById("typed");
       this.audio = document.getElementById("music");
       this.layout = document.querySelector(".layout");
@@ -35,6 +38,15 @@ window.GiocoTastiera = window.GiocoTastiera || {};
       this.setupButton = document.getElementById("setupButton");
       this.lockOverlay = document.getElementById("lockOverlay");
       this.settingsOverlay = document.getElementById("settingsOverlay");
+      this.imagePickerOverlay = document.getElementById("imagePickerOverlay");
+      this.imagePickerTitle = document.getElementById("imagePickerTitle");
+      this.imagePickerIntro = document.getElementById("imagePickerIntro");
+      this.imagePickerStatus = document.getElementById("imagePickerStatus");
+      this.imagePickerGrid = document.getElementById("imagePickerGrid");
+      this.imagePickerAutomatic = document.getElementById("imagePickerAutomatic");
+      this.imagePickerPrevious = document.getElementById("imagePickerPrevious");
+      this.imagePickerNext = document.getElementById("imagePickerNext");
+      this.closeImagePicker = document.getElementById("closeImagePicker");
       this.challengeLabel = document.getElementById("challengeLabel");
       this.challengeInput = document.getElementById("challengeInput");
       this.challengeHint = document.getElementById("challengeHint");
@@ -64,9 +76,14 @@ window.GiocoTastiera = window.GiocoTastiera || {};
       this.fxCtx = this.fxCanvas.getContext("2d");
       this.fxState = null;
       this.familyPictureDrafts = {};
+      this.preferredWordImagesDraft = {};
       this.customCategoryDrafts = [];
       this.familyWordsInput = null;
       this.familyPicturesEditor = null;
+      this.imageService = null;
+      this.currentImagePickerEntry = null;
+      this.imagePickerRequestId = 0;
+      this.currentImagePickerPage = 0;
 
       this.buildSettingsEditor();
       this.applyI18n();
@@ -112,6 +129,26 @@ window.GiocoTastiera = window.GiocoTastiera || {};
           this.addCustomCategory();
         });
       }
+
+      if(this.imagePickerAutomatic){
+        this.imagePickerAutomatic.addEventListener("click", () => this.clearCurrentWordImageSelection());
+      }
+
+      if(this.imagePickerPrevious){
+        this.imagePickerPrevious.addEventListener("click", () => this.changeImagePickerPage(-1));
+      }
+
+      if(this.imagePickerNext){
+        this.imagePickerNext.addEventListener("click", () => this.changeImagePickerPage(1));
+      }
+
+      if(this.closeImagePicker){
+        this.closeImagePicker.addEventListener("click", () => this.closeOverlay(this.imagePickerOverlay));
+      }
+    }
+
+    setImageService(imageService){
+      this.imageService = imageService;
     }
 
     updateVolumeLabel(input, output){
@@ -157,6 +194,41 @@ window.GiocoTastiera = window.GiocoTastiera || {};
       if(!Number.isFinite(parsed)) return fallback;
       const clamped = Math.min(Math.max(parsed, MIN_LETTER_SIZE_PERCENT), MAX_LETTER_SIZE_PERCENT);
       return Math.round(clamped / LETTER_SIZE_STEP_PERCENT) * LETTER_SIZE_STEP_PERCENT;
+    }
+
+    pictureZoomToSlider(value){
+      const parsed = Number(value);
+      const safe = Number.isFinite(parsed) ? parsed : DEFAULT_PICTURE_ZOOM_PERCENT;
+      const clamped = Math.min(Math.max(safe, MIN_PICTURE_ZOOM_PERCENT), MAX_PICTURE_ZOOM_PERCENT);
+      return String(Math.round(clamped / PICTURE_ZOOM_STEP_PERCENT) * PICTURE_ZOOM_STEP_PERCENT);
+    }
+
+    sliderToPictureZoom(input, fallback = DEFAULT_PICTURE_ZOOM_PERCENT){
+      if(!input) return fallback;
+      const parsed = Number(input.value);
+      if(!Number.isFinite(parsed)) return fallback;
+      const clamped = Math.min(Math.max(parsed, MIN_PICTURE_ZOOM_PERCENT), MAX_PICTURE_ZOOM_PERCENT);
+      return Math.round(clamped / PICTURE_ZOOM_STEP_PERCENT) * PICTURE_ZOOM_STEP_PERCENT;
+    }
+
+    updateWordImageZoom(input){
+      if(!input) return;
+
+      const category = input.dataset.wordImageZoomCategory;
+      const word = input.dataset.wordImageZoomWord;
+      if(!category || !word) return;
+
+      const key = wordImageKey(category, word);
+      const current = this.preferredWordImagesDraft[key];
+      if(!current || !current.src) return;
+
+      const zoomPercent = this.sliderToPictureZoom(input, current.zoomPercent);
+      current.zoomPercent = zoomPercent;
+
+      const output = input.parentElement ? input.parentElement.querySelector("[data-word-image-zoom-value]") : null;
+      if(output){
+        output.textContent = `${zoomPercent}%`;
+      }
     }
 
     delayToSlider(delay){
@@ -242,8 +314,20 @@ window.GiocoTastiera = window.GiocoTastiera || {};
         wordsInput.placeholder = t("ui.customCategoryWords");
         wordsInput.value = Array.isArray(category.words) ? category.words.join(", ") : "";
 
+        const wordImages = document.createElement("details");
+        wordImages.className = "word-images-accordion";
+        wordImages.dataset.wordImagesAccordion = category.id;
+
+        const summary = document.createElement("summary");
+        summary.textContent = t("ui.wordImagesTitle");
+
+        const wordImagesBody = document.createElement("div");
+        wordImagesBody.dataset.wordImages = category.id;
+        wordImagesBody.className = "word-images-editor";
+
         header.append(label, removeButton);
-        card.append(header, wordsInput);
+        wordImages.append(summary, wordImagesBody);
+        card.append(header, wordsInput, wordImages);
         return card;
       }
 
@@ -267,6 +351,10 @@ window.GiocoTastiera = window.GiocoTastiera || {};
             </label>
           </header>
           <textarea data-words="${category}" spellcheck="false"></textarea>
+          <details class="word-images-accordion" data-word-images-accordion="${category}">
+            <summary>${t("ui.wordImagesTitle")}</summary>
+            <div class="word-images-editor" data-word-images="${category}"></div>
+          </details>
         `;
       return card;
     }
@@ -289,6 +377,242 @@ window.GiocoTastiera = window.GiocoTastiera || {};
         if(!button) return;
         this.removeCustomCategory(button.dataset.removeCustom);
       });
+
+      this.settingsGrid.addEventListener("click", event => {
+        const chooseButton = event.target.closest("[data-select-word-image]");
+        if(chooseButton){
+          this.openWordImagePicker(chooseButton.dataset.selectWordImage, chooseButton.dataset.word, chooseButton.dataset.categoryLabel);
+          return;
+        }
+
+        const clearButton = event.target.closest("[data-clear-word-image]");
+        if(clearButton){
+          this.clearWordImageSelection(clearButton.dataset.clearWordImage, clearButton.dataset.word);
+        }
+      });
+
+      this.settingsGrid.addEventListener("input", event => {
+        const target = event.target;
+        if(target.matches("[data-words]")){
+          this.renderWordImagesEditor(target.dataset.words, getCategoryLabel(target.dataset.words), sanitizeWordList(target.value));
+          return;
+        }
+
+        if(target.matches("[data-custom-words]")){
+          const categoryId = target.dataset.customWords;
+          const labelInput = this.settingsGrid.querySelector(`[data-custom-label="${categoryId}"]`);
+          this.renderWordImagesEditor(categoryId, labelInput ? labelInput.value.trim() : "", sanitizeWordList(target.value));
+          return;
+        }
+
+        if(target.matches("[data-custom-label]")){
+          const categoryId = target.dataset.customLabel;
+          const wordsInput = this.settingsGrid.querySelector(`[data-custom-words="${categoryId}"]`);
+          this.renderWordImagesEditor(categoryId, target.value.trim(), sanitizeWordList(wordsInput ? wordsInput.value : ""));
+          return;
+        }
+
+        if(target.matches("[data-word-image-zoom]")){
+          this.updateWordImageZoom(target);
+        }
+      });
+    }
+
+    setImagePickerLoading(isLoading, message = ""){
+      if(this.imagePickerGrid) this.imagePickerGrid.innerHTML = "";
+      if(this.imagePickerStatus) this.imagePickerStatus.textContent = message;
+      if(this.imagePickerPrevious) this.imagePickerPrevious.disabled = true;
+      if(this.imagePickerNext) this.imagePickerNext.disabled = true;
+      if(this.imagePickerOverlay){
+        this.imagePickerOverlay.classList.toggle("loading", isLoading);
+      }
+    }
+
+    renderImagePickerCandidates(entry, response){
+      const { candidates, hasPrevious, hasNext } = response;
+      if(!this.imagePickerGrid) return;
+      this.imagePickerGrid.innerHTML = "";
+      this.imagePickerStatus.textContent = candidates.length ? "" : t("ui.imagePickerEmpty");
+      if(this.imagePickerPrevious) this.imagePickerPrevious.disabled = !hasPrevious;
+      if(this.imagePickerNext) this.imagePickerNext.disabled = !hasNext;
+
+      for(const candidate of candidates){
+        const button = document.createElement("button");
+        button.type = "button";
+        button.className = "image-choice-card";
+        button.addEventListener("click", () => {
+          const key = wordImageKey(entry.category, entry.word);
+          const existing = this.preferredWordImagesDraft[key];
+          this.preferredWordImagesDraft[key] = {
+            src: candidate.src,
+            source: candidate.source,
+            sourceKind: candidate.sourceKind || "preferred",
+            zoomPercent: existing && existing.src === candidate.src
+              ? this.sliderToPictureZoom({ value: existing.zoomPercent }, DEFAULT_PICTURE_ZOOM_PERCENT)
+              : DEFAULT_PICTURE_ZOOM_PERCENT
+          };
+          this.refreshWordImageEditors();
+          this.closeOverlay(this.imagePickerOverlay);
+        });
+
+        const preview = document.createElement("img");
+        preview.src = candidate.src;
+        preview.alt = `${entry.word} ${candidate.source || ""}`.trim();
+
+        const caption = document.createElement("div");
+        caption.className = "image-choice-source";
+        caption.textContent = candidate.source || t("ui.wordImageSelected");
+
+        button.append(preview, caption);
+        this.imagePickerGrid.appendChild(button);
+      }
+    }
+
+    async loadImagePickerPage(page){
+      if(!this.imageService || !this.currentImagePickerEntry) return;
+
+      this.currentImagePickerPage = Math.max(page, 0);
+      const requestId = this.imagePickerRequestId;
+      this.setImagePickerLoading(true, t("ui.imagePickerLoading"));
+
+      try{
+        const response = await this.imageService.fetchRealtimeImagePage(this.currentImagePickerEntry, this.currentImagePickerPage);
+        if(requestId !== this.imagePickerRequestId) return;
+        this.setImagePickerLoading(false);
+        this.renderImagePickerCandidates(this.currentImagePickerEntry, response);
+      }catch{
+        if(requestId !== this.imagePickerRequestId) return;
+        this.setImagePickerLoading(false, t("ui.imagePickerEmpty"));
+      }
+    }
+
+    async openWordImagePicker(category, word, categoryLabel){
+      if(!this.imageService) return;
+
+      const entry = { category, categoryLabel, word };
+      this.currentImagePickerEntry = entry;
+      this.imagePickerRequestId += 1;
+      this.currentImagePickerPage = 0;
+
+      this.imagePickerTitle.textContent = `${t("ui.imagePickerTitle")} • ${word.toUpperCase()}`;
+      this.imagePickerIntro.textContent = t("ui.imagePickerIntro");
+      this.openOverlay(this.imagePickerOverlay);
+      this.loadImagePickerPage(0);
+    }
+
+    changeImagePickerPage(delta){
+      if(!this.currentImagePickerEntry) return;
+      this.loadImagePickerPage(this.currentImagePickerPage + delta);
+    }
+
+    clearCurrentWordImageSelection(){
+      if(!this.currentImagePickerEntry) return;
+      this.clearWordImageSelection(this.currentImagePickerEntry.category, this.currentImagePickerEntry.word);
+      this.closeOverlay(this.imagePickerOverlay);
+    }
+
+    clearWordImageSelection(category, word){
+      delete this.preferredWordImagesDraft[wordImageKey(category, word)];
+      this.refreshWordImageEditors();
+    }
+
+    renderWordImagesEditor(category, categoryLabel, words){
+      const editor = this.settingsGrid.querySelector(`[data-word-images="${category}"]`);
+      if(!editor) return;
+
+      editor.innerHTML = "";
+      if(category === "famiglia") return;
+
+      for(const word of words){
+        const key = wordImageKey(category, word);
+        const selected = this.preferredWordImagesDraft[key];
+
+        const row = document.createElement("div");
+        row.className = "word-image-row";
+
+        const name = document.createElement("div");
+        name.className = "word-image-name";
+        name.textContent = word.toUpperCase();
+
+        const actions = document.createElement("div");
+        actions.className = "word-image-actions";
+
+        const choose = document.createElement("button");
+        choose.type = "button";
+        choose.className = "secondary";
+        choose.dataset.selectWordImage = category;
+        choose.dataset.word = word;
+        choose.dataset.categoryLabel = categoryLabel || getCategoryLabel(category);
+        choose.textContent = selected ? t("ui.changeWordImage") : t("ui.selectWordImage");
+
+        const clear = document.createElement("button");
+        clear.type = "button";
+        clear.className = "secondary";
+        clear.dataset.clearWordImage = category;
+        clear.dataset.word = word;
+        clear.disabled = !selected;
+        clear.textContent = t("ui.clearWordImage");
+
+        actions.append(choose, clear);
+
+        const status = document.createElement("div");
+        status.className = "word-image-status";
+        status.textContent = selected ? t("ui.wordImageSelected") : t("ui.wordImageAutomatic");
+
+        row.append(name, actions, status);
+
+        if(selected){
+          const zoomControl = document.createElement("div");
+          zoomControl.className = "slider-control word-image-zoom-control";
+
+          const zoomLabel = document.createElement("label");
+          zoomLabel.htmlFor = `word-image-zoom-${key}`;
+
+          const zoomTitle = document.createElement("span");
+          zoomTitle.textContent = t("ui.pictureZoom");
+
+          const zoomValue = document.createElement("span");
+          zoomValue.className = "slider-value";
+          zoomValue.dataset.wordImageZoomValue = "true";
+          zoomValue.textContent = `${this.pictureZoomToSlider(selected.zoomPercent)}%`;
+
+          zoomLabel.append(zoomTitle, zoomValue);
+
+          const zoomInput = document.createElement("input");
+          zoomInput.type = "range";
+          zoomInput.id = `word-image-zoom-${key}`;
+          zoomInput.min = String(MIN_PICTURE_ZOOM_PERCENT);
+          zoomInput.max = String(MAX_PICTURE_ZOOM_PERCENT);
+          zoomInput.step = String(PICTURE_ZOOM_STEP_PERCENT);
+          zoomInput.value = this.pictureZoomToSlider(selected.zoomPercent);
+          zoomInput.dataset.wordImageZoom = "true";
+          zoomInput.dataset.wordImageZoomCategory = category;
+          zoomInput.dataset.wordImageZoomWord = word;
+
+          zoomControl.append(zoomLabel, zoomInput);
+          row.appendChild(zoomControl);
+        }
+
+        editor.appendChild(row);
+      }
+    }
+
+    refreshWordImageEditors(){
+      for(const category of CATEGORY_ORDER){
+        const wordsInput = this.settingsGrid.querySelector(`[data-words="${category}"]`);
+        this.renderWordImagesEditor(category, getCategoryLabel(category), sanitizeWordList(wordsInput ? wordsInput.value : []));
+      }
+
+      for(const card of this.settingsGrid.querySelectorAll("[data-custom-category]")){
+        const categoryId = card.dataset.customId;
+        const labelInput = card.querySelector(`[data-custom-label="${categoryId}"]`);
+        const wordsInput = card.querySelector(`[data-custom-words="${categoryId}"]`);
+        this.renderWordImagesEditor(
+          categoryId,
+          labelInput ? labelInput.value.trim() : "",
+          sanitizeWordList(wordsInput ? wordsInput.value : [])
+        );
+      }
     }
 
     readCustomCategoriesFromEditor(){
@@ -315,6 +639,8 @@ window.GiocoTastiera = window.GiocoTastiera || {};
         const card = this.buildCategoryCard(category, { isCustom: true });
         this.settingsGrid.appendChild(card);
       }
+
+      this.refreshWordImageEditors();
     }
 
     syncCustomCategoryDrafts(){
@@ -358,6 +684,11 @@ window.GiocoTastiera = window.GiocoTastiera || {};
     removeCustomCategory(id){
       this.syncCustomCategoryDrafts();
       this.customCategoryDrafts = this.customCategoryDrafts.filter(category => category.id !== id);
+      for(const key of Object.keys(this.preferredWordImagesDraft)){
+        if(key.startsWith(`${id.toLowerCase()}:`)){
+          delete this.preferredWordImagesDraft[key];
+        }
+      }
       this.renderCustomCategoryCards(this.customCategoryDrafts);
     }
 
@@ -480,20 +811,49 @@ window.GiocoTastiera = window.GiocoTastiera || {};
       document.documentElement.style.setProperty("--letter-scale", String(scale));
     }
 
-    renderTypedBar(insertedLetters){
+    renderTypedBar(wordLayout, insertedLetters, currentIndex, settings){
       this.typedDiv.innerHTML = "";
-      for(const letter of insertedLetters){
+
+      const slots = wordLayout && Array.isArray(wordLayout.slots) ? wordLayout.slots : [];
+      const typedLetters = Array.isArray(insertedLetters) ? insertedLetters : [];
+
+      for(const slot of slots){
+        if(slot.kind === "break"){
+          const typedBreak = document.createElement("div");
+          typedBreak.className = "word-break";
+          this.typedDiv.appendChild(typedBreak);
+          continue;
+        }
+
         const chip = document.createElement("div");
         chip.className = "typed-chip";
-        chip.style.background = colorForChar(stripAccents(letter));
-        chip.textContent = letter;
+        chip.dataset.playableIndex = String(slot.playableIndex);
+
+        const letter = typedLetters[slot.playableIndex];
+        if(letter){
+          chip.textContent = letter;
+          chip.style.background = colorForChar(stripAccents(letter));
+          chip.style.color = "#fff";
+          chip.classList.add("filled");
+        }else{
+          chip.textContent = "";
+          chip.style.background = "";
+          chip.style.color = "";
+        }
+
+        if(slot.playableIndex === currentIndex){
+          chip.classList.add("active");
+        }
+
         this.typedDiv.appendChild(chip);
       }
+
+      this.updateExpectedLetterHighlight(currentIndex, settings && settings.highlightExpectedLetter !== false);
     }
 
     updateExpectedLetterHighlight(index, enabled){
       const letters = this.wordDiv.children;
-      const boxes = this.boxDiv.children;
+      const boxes = this.typedDiv.children;
 
       for(const letter of letters){
         letter.classList.remove("expected");
@@ -505,58 +865,33 @@ window.GiocoTastiera = window.GiocoTastiera || {};
 
       if(!enabled) return;
 
-      const nextLetter = letters[index];
-      const nextBox = boxes[index];
+      const nextLetter = this.wordDiv.querySelector(`[data-playable-index="${index}"]`);
+      const nextBox = this.typedDiv.querySelector(`[data-playable-index="${index}"]`);
       if(nextLetter) nextLetter.classList.add("expected");
       if(nextBox) nextBox.classList.add("expected");
     }
 
-    renderWord(entry, settings){
-      const displayWord = entry.word.toUpperCase();
-      const normalizedWord = stripAccents(displayWord);
+    renderWord(entry, wordLayout, settings){
       this.wordDiv.innerHTML = "";
-      this.boxDiv.innerHTML = "";
 
-      for(let i = 0; i < displayWord.length; i++){
-        const visibleLetter = displayWord[i];
-        const normalizedLetter = normalizedWord[i];
+      const slots = wordLayout && Array.isArray(wordLayout.slots) ? wordLayout.slots : [];
+      for(const slot of slots){
+        if(slot.kind === "break"){
+          const wordBreak = document.createElement("div");
+          wordBreak.className = "word-break";
+          this.wordDiv.appendChild(wordBreak);
+          continue;
+        }
 
         const letter = document.createElement("div");
         letter.className = "letter";
-        letter.style.background = colorForChar(normalizedLetter);
-        letter.textContent = visibleLetter;
+        letter.dataset.playableIndex = String(slot.playableIndex);
+        letter.style.background = colorForChar(slot.base);
+        letter.textContent = slot.visibleLetter;
         this.wordDiv.appendChild(letter);
-
-        const box = document.createElement("div");
-        box.className = "box";
-        if(i === 0) box.classList.add("active");
-        this.boxDiv.appendChild(box);
       }
 
       this.updateExpectedLetterHighlight(0, settings && settings.highlightExpectedLetter !== false);
-    }
-
-    markCorrectLetter(index, visibleLetter, base, settings){
-      const currentBox = this.boxDiv.children[index];
-      if(!currentBox) return;
-      currentBox.textContent = visibleLetter;
-      currentBox.style.background = colorForChar(base);
-      currentBox.style.color = "#fff";
-      currentBox.classList.remove("active");
-      currentBox.classList.remove("expected");
-
-      const currentLetter = this.wordDiv.children[index];
-      if(currentLetter){
-        currentLetter.classList.remove("expected");
-      }
-
-      this.updateExpectedLetterHighlight(index + 1, settings && settings.highlightExpectedLetter !== false);
-    }
-
-    highlightNextBox(index, settings){
-      const nextBox = this.boxDiv.children[index];
-      if(nextBox) nextBox.classList.add("active");
-      this.updateExpectedLetterHighlight(index, settings && settings.highlightExpectedLetter !== false);
     }
 
     setPictureLoading(isLoading){
@@ -570,6 +905,7 @@ window.GiocoTastiera = window.GiocoTastiera || {};
       this.setPictureLoading(isLoading);
       this.pictureImage.hidden = true;
       this.pictureImage.removeAttribute("src");
+      this.pictureImage.style.transform = "scale(1)";
       this.picturePlaceholder.hidden = !text;
       this.picturePlaceholder.textContent = text;
       this.pictureSource.textContent = source || "";
@@ -582,6 +918,7 @@ window.GiocoTastiera = window.GiocoTastiera || {};
       this.picturePlaceholder.textContent = t("ui.pictureDisabled");
       this.pictureImage.hidden = true;
       this.pictureImage.removeAttribute("src");
+      this.pictureImage.style.transform = "scale(1)";
       this.pictureSource.textContent = "";
     }
 
@@ -613,6 +950,7 @@ window.GiocoTastiera = window.GiocoTastiera || {};
             this.pictureImage.hidden = false;
             this.pictureImage.alt = t("ui.pictureAlt", { word: entry.word });
             this.pictureImage.src = image.src;
+            this.pictureImage.style.transform = `scale(${(Number(image.zoomPercent) || DEFAULT_PICTURE_ZOOM_PERCENT) / 100})`;
             this.pictureSource.textContent = image.source;
             return;
           }catch{
@@ -628,6 +966,9 @@ window.GiocoTastiera = window.GiocoTastiera || {};
 
     fillSettingsEditor(settings){
       this.familyPictureDrafts = Object.assign({}, settings.familyPictures || {});
+      this.preferredWordImagesDraft = Object.fromEntries(
+        Object.entries(settings.preferredWordImages || {}).map(([key, value]) => [key, Object.assign({}, value)])
+      );
       this.customCategoryDrafts = Array.isArray(settings.customCategories)
         ? settings.customCategories.map(category => ({
           id: category.id,
@@ -659,6 +1000,7 @@ window.GiocoTastiera = window.GiocoTastiera || {};
       this.renderCustomCategoryCards(this.customCategoryDrafts);
       if(this.customCategoryNameInput) this.customCategoryNameInput.value = "";
       this.syncFamilyPicturesEditor();
+      this.refreshWordImageEditors();
     }
 
     readSettingsEditor(defaultSettingsFactory, sanitizeWords, defaultLibrary){
@@ -692,6 +1034,26 @@ window.GiocoTastiera = window.GiocoTastiera || {};
       }
 
       next.familyPictures = this.readFamilyPictures(next.categories.famiglia);
+      next.preferredWordImages = {};
+
+      for(const category of CATEGORY_ORDER){
+        if(category === "famiglia") continue;
+        for(const word of next.categories[category]){
+          const key = wordImageKey(category, word);
+          if(this.preferredWordImagesDraft[key]){
+            next.preferredWordImages[key] = Object.assign({}, this.preferredWordImagesDraft[key]);
+          }
+        }
+      }
+
+      for(const category of next.customCategories){
+        for(const word of category.words){
+          const key = wordImageKey(category.id, word);
+          if(this.preferredWordImagesDraft[key]){
+            next.preferredWordImages[key] = Object.assign({}, this.preferredWordImagesDraft[key]);
+          }
+        }
+      }
 
       return next;
     }

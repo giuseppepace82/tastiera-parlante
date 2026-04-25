@@ -9,7 +9,7 @@ window.GiocoTastiera = window.GiocoTastiera || {};
     getCategoryLabel,
     t
   } = ns.config;
-  const { familyPictureKey, slugify, stripAccents } = ns.model;
+  const { familyPictureKey, slugify, stripAccents, wordImageKey } = ns.model;
 
   class ImageService {
     constructor(){
@@ -43,7 +43,6 @@ window.GiocoTastiera = window.GiocoTastiera || {};
 
     buildArasaacCandidates(items, searchTerm){
       return items
-        .slice(0, MAX_REMOTE_IMAGE_CANDIDATES)
         .map(item => ({
           src: this.buildArasaacImageUrl(item._id),
           source: t("ui.imageSourceArasaac", { term: searchTerm.toUpperCase(), id: item._id }),
@@ -75,7 +74,7 @@ window.GiocoTastiera = window.GiocoTastiera || {};
       const searchTerms = this.buildSearchTerms(entry);
 
       for(const searchTerm of searchTerms){
-        const searchEndpoint = `https://it.wikipedia.org/w/api.php?action=query&list=search&srsearch=${encodeURIComponent(searchTerm)}&srlimit=5&format=json&origin=*`;
+        const searchEndpoint = `https://it.wikipedia.org/w/api.php?action=query&list=search&srsearch=${encodeURIComponent(searchTerm)}&srlimit=18&format=json&origin=*`;
         const searchResponse = await fetch(searchEndpoint);
         if(!searchResponse.ok){
           continue;
@@ -104,8 +103,6 @@ window.GiocoTastiera = window.GiocoTastiera || {};
             }),
             sourceKind: "wikimedia"
           });
-
-          if(candidates.length >= MAX_REMOTE_IMAGE_CANDIDATES) break;
         }
 
         if(candidates.length){
@@ -143,6 +140,19 @@ window.GiocoTastiera = window.GiocoTastiera || {};
       return deduped;
     }
 
+    async fetchRealtimeImagePage(entry, page = 0){
+      const catalog = await this.fetchRealtimeImage(entry);
+      const safePage = Math.max(Number(page) || 0, 0);
+      const start = safePage * MAX_REMOTE_IMAGE_CANDIDATES;
+      const end = start + MAX_REMOTE_IMAGE_CANDIDATES;
+      return {
+        candidates: catalog.slice(start, end),
+        hasPrevious: safePage > 0,
+        hasNext: end < catalog.length,
+        page: safePage
+      };
+    }
+
     async resolveImageCandidates(entry, settings){
       if(entry.category === "famiglia"){
         const key = familyPictureKey(entry.word);
@@ -156,7 +166,28 @@ window.GiocoTastiera = window.GiocoTastiera || {};
         candidates.push({ src: FAMILY_FALLBACK_IMAGE, source: t("ui.imageSourceFallbackFamily"), sourceKind: "fallback" });
         return candidates;
       }
-      return this.fetchRealtimeImage(entry);
+
+      const preferredKey = wordImageKey(entry.category, entry.word);
+      const preferredImage = settings && settings.preferredWordImages ? settings.preferredWordImages[preferredKey] : null;
+      const candidates = await this.fetchRealtimeImage(entry);
+      if(!preferredImage || !preferredImage.src){
+        return candidates;
+      }
+
+      const prioritized = [{
+        src: preferredImage.src,
+        source: t("ui.imageSourcePreferred", { source: preferredImage.source || t("ui.wordImageSelected") }),
+        sourceKind: preferredImage.sourceKind || "preferred",
+        zoomPercent: preferredImage.zoomPercent
+      }];
+
+      for(const candidate of candidates){
+        if(candidate && candidate.src && candidate.src !== preferredImage.src){
+          prioritized.push(candidate);
+        }
+      }
+
+      return prioritized;
     }
 
     preloadImage(src){

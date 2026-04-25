@@ -18,13 +18,14 @@ It is designed to help children practice letters, sounds, and guided word comple
 
 1. The game selects a word from the enabled categories.
 2. The word is shown in uppercase.
-3. Empty boxes appear below the word.
+3. A composition panel appears below the word, with one box for each letter.
 4. The full word is spoken as soon as it appears.
 5. An optional visual hint can highlight the next expected letter.
 6. The child types letters on the keyboard.
 7. Correct letters are inserted and pronounced.
 8. Incorrect letters are pronounced but not inserted.
 9. When the word is completed, the full word is spoken and a short celebration starts after a configurable delay.
+10. The completed word remains visible until the next word is loaded.
 
 ## Current Features
 
@@ -34,12 +35,15 @@ It is designed to help children practice letters, sounds, and guided word comple
 - optional guide image shown next to the word or below it
 - configurable letter and box size
 - optional highlight for the next expected letter
+- words containing spaces wrap onto a new line at the space boundary
 - setup area protected by a simple arithmetic challenge
 - editable word categories
 - custom categories that can be added and removed from setup
 - local family photos configurable from setup
 - generic local SVG fallback for family entries
 - realtime image search for other categories
+- per-word web image picker for non-family categories
+- per-word image zoom, stored on the selected image itself
 - ARASAAC as primary visual source
 - Wikipedia/Wikimedia as fallback
 - music and celebration effects after correct completion
@@ -84,6 +88,9 @@ From setup, it is possible to:
 - enable or disable highlight for the next expected letter
 - enable or disable guide images
 - choose image position: side or bottom
+- open a per-word image picker for non-family categories
+- keep automatic image choice or select a preferred web image for a specific word
+- adjust zoom for each selected image independently
 - enable or disable celebration
 - enable or disable celebration skip via click or space bar
 - adjust the delay before celebration starts
@@ -126,6 +133,9 @@ For speech synthesis and live image loading, a modern browser is recommended.
 
 - Family images are handled locally.
 - Other category images are fetched in realtime.
+- Preferred non-family images can be chosen from setup and are then used as the first candidate for that word.
+- Image zoom is configured per selected image, not globally.
 - Custom categories are also used as semantic context for realtime image searches.
 - If a family image is missing, the app uses `assets/famiglia/generico.svg`.
+- The active composition panel is `#typed`; the old separate `boxes` panel is no longer used.
 - The interface is intentionally simple and highly visual.

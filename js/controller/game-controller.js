@@ -17,6 +17,7 @@ window.GiocoTastiera = window.GiocoTastiera || {};
       this.model = new GameModel();
       this.view = new GameView();
       this.imageService = new ImageService();
+      this.view.setImageService(this.imageService);
       this.speechService = new SpeechService();
       this.celebrationTimers = [];
       this.celebrationActive = false;
@@ -47,7 +48,6 @@ window.GiocoTastiera = window.GiocoTastiera || {};
       this.bindEvents();
       this.applyAudioSettings();
       this.view.applyLetterSize(this.model.settings);
-      this.view.renderTypedBar(this.model.insertedLetters);
       this.view.applyPictureLayout(this.model.settings);
       this.newWord();
     }
@@ -183,16 +183,17 @@ window.GiocoTastiera = window.GiocoTastiera || {};
       const result = this.model.recordKey(pressed);
       if(!result.accepted) return;
 
-      this.view.renderTypedBar(this.model.insertedLetters);
-      this.view.markCorrectLetter(result.currentIndex - 1, result.visibleLetter, result.base, this.model.settings);
+      this.view.renderTypedBar(
+        this.model.wordLayout,
+        this.model.insertedLetters,
+        this.model.currentIndex,
+        this.model.settings
+      );
 
       if(!result.completed){
-        this.view.highlightNextBox(result.currentIndex, this.model.settings);
         return;
       }
 
-      this.model.clearInsertedLetters();
-      this.view.renderTypedBar(this.model.insertedLetters);
       this.speechService.speakWord(this.model.currentEntry.word);
       if(!this.model.settings.enableCelebration){
         const nextWordTimer = setTimeout(() => {
@@ -313,8 +314,13 @@ window.GiocoTastiera = window.GiocoTastiera || {};
       this.setMusicLevel(0);
 
       const entry = this.model.pickNextWord();
-      this.view.renderTypedBar(this.model.insertedLetters);
-      this.view.renderWord(entry, this.model.settings);
+      this.view.renderWord(entry, this.model.wordLayout, this.model.settings);
+      this.view.renderTypedBar(
+        this.model.wordLayout,
+        this.model.insertedLetters,
+        this.model.currentIndex,
+        this.model.settings
+      );
       this.renderPicture(entry);
       this.scheduleWordAnnouncement(entry.word);
     }
