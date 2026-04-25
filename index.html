@@ -15,6 +15,13 @@
   --consonant:#32cd32;
   --line:#f0d58b;
   --shadow:0 18px 45px rgba(113,84,17,0.12);
+  --letter-scale:1;
+  --tile-base:74px;
+  --typed-tile-base:62px;
+  --tile-font-base:2.2rem;
+  --typed-font-base:1.9rem;
+  --tile-radius-base:18px;
+  --typed-radius-base:18px;
 }
 *{ box-sizing:border-box; }
 body{
@@ -87,7 +94,7 @@ h1{
   display:grid;
   grid-template-columns:minmax(320px, 1.2fr) minmax(280px, 0.8fr);
   gap:24px;
-  align-items:start;
+  align-items:stretch;
 }
 .layout.picture-bottom{
   grid-template-columns:1fr;
@@ -113,6 +120,10 @@ h1{
   display:flex;
   flex-direction:column;
   gap:14px;
+}
+.layout:not(.picture-bottom) .picture-card{
+  padding:14px;
+  gap:10px;
 }
 .picture-frame{
   flex:1;
@@ -179,6 +190,7 @@ h1{
   display:flex;
   flex-direction:column;
   gap:18px;
+  min-height:100%;
 }
 .word-grid,
 .boxes-grid,
@@ -191,13 +203,13 @@ h1{
 .letter,
 .box,
 .typed-chip{
-  width:74px;
-  height:74px;
+  width:calc(var(--tile-base) * var(--letter-scale));
+  height:calc(var(--tile-base) * var(--letter-scale));
   display:flex;
   align-items:center;
   justify-content:center;
-  border-radius:18px;
-  font-size:2.2rem;
+  border-radius:calc(var(--tile-radius-base) * var(--letter-scale));
+  font-size:calc(var(--tile-font-base) * var(--letter-scale));
   font-weight:900;
   text-transform:uppercase;
   letter-spacing:0.03em;
@@ -206,6 +218,12 @@ h1{
   color:#fff;
   box-shadow:0 10px 24px rgba(0,0,0,0.12);
 }
+.letter.expected{
+  outline:5px solid rgba(255,212,71,0.95);
+  outline-offset:4px;
+  transform:translateY(-4px) scale(1.04);
+  box-shadow:0 16px 28px rgba(255,140,66,0.28);
+}
 .box{
   background:#fff;
   border:3px solid transparent;
@@ -213,6 +231,11 @@ h1{
 }
 .box.active{
   border-color:yellow;
+}
+.box.expected{
+  box-shadow:
+    inset 0 0 0 2px rgba(122,102,66,0.06),
+    0 0 0 6px rgba(255,212,71,0.26);
 }
 .typed-wrap{
   min-height:96px;
@@ -225,8 +248,10 @@ h1{
   border:2px dashed rgba(255,212,71,0.6);
 }
 .typed-chip{
-  width:62px;
-  height:62px;
+  width:calc(var(--typed-tile-base) * var(--letter-scale));
+  height:calc(var(--typed-tile-base) * var(--letter-scale));
+  border-radius:calc(var(--typed-radius-base) * var(--letter-scale));
+  font-size:calc(var(--typed-font-base) * var(--letter-scale));
   color:#fff;
   box-shadow:0 10px 18px rgba(0,0,0,0.1);
 }
@@ -269,8 +294,26 @@ h1{
   gap:12px;
   margin-top:20px;
 }
-.option-title{
+.settings-section{
   margin-top:18px;
+  padding:18px;
+  border:2px solid rgba(255,212,71,0.42);
+  border-radius:22px;
+  background:linear-gradient(180deg, rgba(255,255,255,0.82) 0%, rgba(255,247,216,0.92) 100%);
+}
+.settings-section-title{
+  margin:0;
+  font-size:1rem;
+  font-weight:900;
+  letter-spacing:0.08em;
+  text-transform:uppercase;
+  color:#5d4720;
+}
+.settings-section-body{
+  margin-top:14px;
+}
+.option-title{
+  margin-top:0;
   font-weight:900;
   letter-spacing:0.08em;
   text-transform:uppercase;
@@ -326,6 +369,18 @@ h1{
 .secondary{
   background:#fff5d2;
   color:#765725;
+}
+.icon-cta{
+  width:48px;
+  min-width:48px;
+  height:48px;
+  padding:0;
+  border-radius:14px;
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  font-size:1.5rem;
+  line-height:1;
 }
 .lock-form{
   display:flex;
@@ -443,6 +498,46 @@ h1{
   font-size:0.92rem;
   color:#7f6640;
 }
+.category-toolbar{
+  display:flex;
+  flex-wrap:wrap;
+  gap:12px;
+  margin-top:14px;
+}
+.category-toolbar input{
+  flex:1;
+  min-width:220px;
+  border:2px solid rgba(240,213,139,0.95);
+  border-radius:14px;
+  padding:12px 14px;
+  background:#fff;
+}
+.custom-category-card header{
+  align-items:flex-start;
+}
+.custom-category-card header label{
+  flex:1;
+  align-items:flex-start;
+  flex-direction:column;
+}
+.custom-category-checkbox{
+  display:flex;
+  align-items:center;
+  gap:10px;
+}
+.custom-category-checkbox span{
+  font-size:0.9rem;
+}
+.custom-category-card header input[type="text"]{
+  width:100%;
+  border:2px solid rgba(240,213,139,0.95);
+  border-radius:12px;
+  padding:10px 12px;
+  background:#fff;
+}
+.custom-remove-button{
+  white-space:nowrap;
+}
 .sr-only{
   position:absolute;
   width:1px;
@@ -472,6 +567,14 @@ canvas{
   }
 }
 @media (max-width: 560px){
+  :root{
+    --tile-base:58px;
+    --typed-tile-base:52px;
+    --tile-font-base:1.8rem;
+    --typed-font-base:1.7rem;
+    --tile-radius-base:14px;
+    --typed-radius-base:14px;
+  }
   .screen{
     width:min(100% - 16px, 100%);
     padding-top:16px;
@@ -479,18 +582,6 @@ canvas{
   .panel,
   .modal{
     padding:18px;
-  }
-  .letter,
-  .box{
-    width:58px;
-    height:58px;
-    font-size:1.8rem;
-    border-radius:14px;
-  }
-  .typed-chip{
-    width:52px;
-    height:52px;
-    font-size:1.7rem;
   }
   .picture-frame{
     min-height:240px;
@@ -553,50 +644,108 @@ canvas{
     <h2 data-i18n="ui.settingsTitle">SETUP PAROLE</h2>
     <p data-i18n="ui.settingsIntro">Attiva le categorie che vuoi usare e modifica le parole. Le parole possono essere separate da virgole o righe nuove.</p>
 
-    <div class="modal-actions">
-      <label class="switch-row">
-        <input id="showPictureToggle" type="checkbox">
-        <span data-i18n="ui.showPicture">MOSTRA IMMAGINE GUIDA</span>
-      </label>
-      <label class="switch-row">
-        <input id="allowCelebrationSkipToggle" type="checkbox">
-        <span data-i18n="ui.allowCelebrationSkip">INTERROMPI LA CERIMONIA CON CLICK O BARRA SPAZIATRICE</span>
-      </label>
-    </div>
-
-    <div class="option-title" data-i18n="ui.picturePositionTitle">POSIZIONE IMMAGINE</div>
-    <div class="option-group">
-      <label class="switch-row">
-        <input id="picturePositionSide" type="radio" name="picturePosition" value="side">
-        <span data-i18n="ui.picturePositionSide">LATERALE</span>
-      </label>
-      <label class="switch-row">
-        <input id="picturePositionBottom" type="radio" name="picturePosition" value="bottom">
-        <span data-i18n="ui.picturePositionBottom">SOTTO LE PAROLE</span>
-      </label>
-    </div>
-
-    <div class="option-title" data-i18n="ui.audioTitle">AUDIO</div>
-    <div class="slider-group">
-      <div class="slider-control">
-        <label for="speechVolumeRange">
-          <span data-i18n="ui.speechVolume">VOLUME PARLATO</span>
-          <span id="speechVolumeValue" class="slider-value">70%</span>
-        </label>
-        <input id="speechVolumeRange" type="range" min="0" max="100" step="5" value="70">
+    <section class="settings-section">
+      <h3 class="settings-section-title" data-i18n="ui.audioTitle">AUDIO</h3>
+      <div class="settings-section-body slider-group">
+        <div class="slider-control">
+          <label for="speechVolumeRange">
+            <span data-i18n="ui.speechVolume">VOLUME PARLATO</span>
+            <span id="speechVolumeValue" class="slider-value">70%</span>
+          </label>
+          <input id="speechVolumeRange" type="range" min="0" max="100" step="5" value="70">
+        </div>
+        <div class="slider-control">
+          <label for="celebrationMusicVolumeRange">
+            <span data-i18n="ui.celebrationMusicVolume">VOLUME MUSICA CERIMONIA</span>
+            <span id="celebrationMusicVolumeValue" class="slider-value">70%</span>
+          </label>
+          <input id="celebrationMusicVolumeRange" type="range" min="0" max="100" step="5" value="70">
+        </div>
       </div>
-      <div class="slider-control">
-        <label for="celebrationMusicVolumeRange">
-          <span data-i18n="ui.celebrationMusicVolume">VOLUME MUSICA CERIMONIA</span>
-          <span id="celebrationMusicVolumeValue" class="slider-value">70%</span>
-        </label>
-        <input id="celebrationMusicVolumeRange" type="range" min="0" max="100" step="5" value="70">
+    </section>
+
+    <section class="settings-section">
+      <h3 class="settings-section-title" data-i18n="ui.letterPanelTitle">PANNELLO LETTERE</h3>
+      <div class="settings-section-body">
+        <div class="slider-group">
+          <div class="slider-control">
+            <label for="letterSizeRange">
+              <span data-i18n="ui.letterSize">DIMENSIONE LETTERE</span>
+              <span id="letterSizeValue" class="slider-value">100%</span>
+            </label>
+            <input id="letterSizeRange" type="range" min="75" max="140" step="5" value="100">
+          </div>
+        </div>
+        <div class="option-group">
+          <label class="switch-row">
+            <input id="highlightExpectedLetterToggle" type="checkbox">
+            <span data-i18n="ui.highlightExpectedLetter">EVIDENZIA LA PROSSIMA LETTERA DA DIGITARE</span>
+          </label>
+        </div>
       </div>
-    </div>
+    </section>
 
-    <div id="settingsGrid" class="settings-grid"></div>
+    <section class="settings-section">
+      <h3 class="settings-section-title" data-i18n="ui.imagesTitle">IMMAGINI</h3>
+      <div class="settings-section-body">
+        <div class="option-group">
+          <label class="switch-row">
+            <input id="showPictureToggle" type="checkbox">
+            <span data-i18n="ui.showPicture">MOSTRA IMMAGINE GUIDA</span>
+          </label>
+        </div>
+        <div class="option-title" data-i18n="ui.picturePositionTitle">POSIZIONE IMMAGINE</div>
+        <div class="option-group">
+          <label class="switch-row">
+            <input id="picturePositionSide" type="radio" name="picturePosition" value="side">
+            <span data-i18n="ui.picturePositionSide">LATERALE</span>
+          </label>
+          <label class="switch-row">
+            <input id="picturePositionBottom" type="radio" name="picturePosition" value="bottom">
+            <span data-i18n="ui.picturePositionBottom">SOTTO LE PAROLE</span>
+          </label>
+        </div>
+      </div>
+    </section>
 
-    <p class="settings-note" data-i18n-html="ui.settingsNoteHtml">Nella categoria famiglia puoi personalizzare le voci e associare a ciascuna una foto locale dal dispositivo. Se una foto non è presente, viene usato l'SVG generico in <code>assets/famiglia/generico.svg</code>. Le altre immagini vengono cercate sul web in tempo reale.</p>
+    <section class="settings-section">
+      <h3 class="settings-section-title" data-i18n="ui.celebrationTitle">CERIMONIA</h3>
+      <div class="settings-section-body">
+        <div class="option-group">
+          <label class="switch-row">
+            <input id="enableCelebrationToggle" type="checkbox">
+            <span data-i18n="ui.enableCelebration">ATTIVA CERIMONIA FINALE</span>
+          </label>
+          <label class="switch-row">
+            <input id="allowCelebrationSkipToggle" type="checkbox">
+            <span data-i18n="ui.allowCelebrationSkip">INTERROMPI LA CERIMONIA CON CLICK O BARRA SPAZIATRICE</span>
+          </label>
+        </div>
+        <div class="slider-group">
+          <div class="slider-control">
+            <label for="celebrationDelayRange">
+              <span data-i18n="ui.celebrationDelay">ATTESA PRIMA DELLA CERIMONIA</span>
+              <span id="celebrationDelayValue" class="slider-value">2 s</span>
+            </label>
+            <input id="celebrationDelayRange" type="range" min="0" max="5000" step="250" value="2000">
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="settings-section">
+      <h3 class="settings-section-title" data-i18n="ui.categoriesTitle">CATEGORIE</h3>
+      <div class="settings-section-body">
+        <div class="category-toolbar">
+          <input id="customCategoryNameInput" type="text" maxlength="32" data-i18n-placeholder="ui.addCategoryPlaceholder" placeholder="Nome nuova categoria">
+          <button id="addCategoryButton" class="secondary icon-cta" type="button" data-i18n-aria-label="ui.addCategory" aria-label="Aggiungi categoria" title="Aggiungi categoria">+</button>
+        </div>
+
+        <div id="settingsGrid" class="settings-grid"></div>
+
+        <p class="settings-note" data-i18n-html="ui.settingsNoteHtml">Nella categoria famiglia puoi personalizzare le voci e associare a ciascuna una foto locale dal dispositivo. Se una foto non è presente, viene usato l'SVG generico in <code>assets/famiglia/generico.svg</code>. Le altre immagini vengono cercate sul web in tempo reale.</p>
+      </div>
+    </section>
 
     <div class="modal-actions">
       <button id="saveSettings" class="primary" type="button" data-i18n="ui.save">SALVA</button>

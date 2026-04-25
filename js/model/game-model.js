@@ -3,10 +3,17 @@ window.GiocoTastiera = window.GiocoTastiera || {};
 (function(ns){
   const {
     BASE_VOLUME_PERCENT,
+    CELEBRATION_DELAY_STEP_MS,
     CATEGORY_ORDER,
+    DEFAULT_LETTER_SIZE_PERCENT,
     DEFAULT_ENABLED,
     DEFAULT_LIBRARY,
+    LETTER_SIZE_STEP_PERCENT,
+    MAX_CELEBRATION_DELAY_MS,
+    MAX_LETTER_SIZE_PERCENT,
     MAX_VOLUME_PERCENT,
+    MIN_LETTER_SIZE_PERCENT,
+    MIN_CELEBRATION_DELAY_MS,
     STORAGE_KEY
   } = ns.config;
 
@@ -79,15 +86,72 @@ window.GiocoTastiera = window.GiocoTastiera || {};
     return normalizeVolumePercent(parsed, fallback);
   }
 
+  function normalizeCelebrationDelay(value){
+    const parsed = Number(value);
+    if(!Number.isFinite(parsed)) return ns.config.MUSIC_START_DELAY_MS;
+    const clamped = Math.min(Math.max(parsed, MIN_CELEBRATION_DELAY_MS), MAX_CELEBRATION_DELAY_MS);
+    return Math.round(clamped / CELEBRATION_DELAY_STEP_MS) * CELEBRATION_DELAY_STEP_MS;
+  }
+
+  function normalizeLetterSizePercent(value){
+    const parsed = Number(value);
+    if(!Number.isFinite(parsed)) return DEFAULT_LETTER_SIZE_PERCENT;
+    const clamped = Math.min(Math.max(parsed, MIN_LETTER_SIZE_PERCENT), MAX_LETTER_SIZE_PERCENT);
+    return Math.round(clamped / LETTER_SIZE_STEP_PERCENT) * LETTER_SIZE_STEP_PERCENT;
+  }
+
+  function normalizeCustomCategories(rawCategories){
+    if(!Array.isArray(rawCategories)) return [];
+
+    const normalized = [];
+    const usedIds = new Set(CATEGORY_ORDER);
+
+    for(const rawCategory of rawCategories){
+      if(!rawCategory || typeof rawCategory !== "object") continue;
+
+      const label = String(rawCategory.label || rawCategory.name || "").trim();
+      if(!label) continue;
+
+      let baseId = slugify(label);
+      if(!baseId) baseId = "categoria";
+
+      let id = String(rawCategory.id || baseId).trim();
+      id = slugify(id) || baseId;
+      if(CATEGORY_ORDER.includes(id)) id = `custom-${id}`;
+
+      let suffix = 2;
+      let uniqueId = id;
+      while(usedIds.has(uniqueId)){
+        uniqueId = `${id}-${suffix}`;
+        suffix += 1;
+      }
+      usedIds.add(uniqueId);
+
+      normalized.push({
+        id: uniqueId,
+        label,
+        enabled: rawCategory.enabled !== false,
+        words: sanitizeWords(rawCategory.words)
+      });
+    }
+
+    return normalized;
+  }
+
   function createDefaultSettings(){
     return {
       showPicture: true,
+      enableCelebration: true,
       allowCelebrationSkip: true,
+      highlightExpectedLetter: true,
+      letterSizePercent: DEFAULT_LETTER_SIZE_PERCENT,
       speechVolume: BASE_VOLUME_PERCENT,
       celebrationMusicVolume: BASE_VOLUME_PERCENT,
+      celebrationStartDelayMs: ns.config.MUSIC_START_DELAY_MS,
       picturePosition: "side",
       enabledCategories: deepClone(DEFAULT_ENABLED),
       categories: deepClone(DEFAULT_LIBRARY),
+      customCategories: [],
       familyPictures: {}
     };
   }
@@ -96,9 +160,13 @@ window.GiocoTastiera = window.GiocoTastiera || {};
     const next = createDefaultSettings();
     if(raw && typeof raw === "object"){
       next.showPicture = raw.showPicture !== false;
+      next.enableCelebration = raw.enableCelebration !== false;
       next.allowCelebrationSkip = raw.allowCelebrationSkip !== false;
+      next.highlightExpectedLetter = raw.highlightExpectedLetter !== false;
+      next.letterSizePercent = normalizeLetterSizePercent(raw.letterSizePercent);
       next.speechVolume = normalizeStoredVolume(raw.speechVolume, BASE_VOLUME_PERCENT);
       next.celebrationMusicVolume = normalizeStoredVolume(raw.celebrationMusicVolume, BASE_VOLUME_PERCENT);
+      next.celebrationStartDelayMs = normalizeCelebrationDelay(raw.celebrationStartDelayMs);
       if(raw.picturePosition === "bottom" || raw.picturePosition === "side"){
         next.picturePosition = raw.picturePosition;
       }
@@ -111,10 +179,14 @@ window.GiocoTastiera = window.GiocoTastiera || {};
         }
       }
 
+      next.customCategories = normalizeCustomCategories(raw.customCategories);
       next.familyPictures = normalizeFamilyPictures(raw.familyPictures, next.categories.famiglia);
     }
 
-    if(!CATEGORY_ORDER.some(key => next.enabledCategories[key] && next.categories[key].length)){
+    if(
+      !CATEGORY_ORDER.some(key => next.enabledCategories[key] && next.categories[key].length) &&
+      !next.customCategories.some(category => category.enabled && category.words.length)
+    ){
       next.enabledCategories.famiglia = true;
     }
 
@@ -163,7 +235,13 @@ window.GiocoTastiera = window.GiocoTastiera || {};
       for(const category of CATEGORY_ORDER){
         if(!this.settings.enabledCategories[category]) continue;
         for(const word of sanitizeWords(this.settings.categories[category])){
-          pool.push({ category, word });
+          pool.push({ category, categoryLabel: ns.config.getCategoryLabel(category), word });
+        }
+      }
+      for(const category of this.settings.customCategories){
+        if(!category.enabled) continue;
+        for(const word of sanitizeWords(category.words)){
+          pool.push({ category: category.id, categoryLabel: category.label, word, isCustomCategory: true });
         }
       }
       return pool;

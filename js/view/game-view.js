@@ -1,7 +1,21 @@
 window.GiocoTastiera = window.GiocoTastiera || {};
 
 (function(ns){
-  const { CATEGORY_ORDER, CELEBRATION_MS, MAX_VOLUME_PERCENT, getCategoryLabel, getLocale, t } = ns.config;
+  const {
+    CATEGORY_ORDER,
+    CELEBRATION_MS,
+    CELEBRATION_DELAY_STEP_MS,
+    DEFAULT_LETTER_SIZE_PERCENT,
+    LETTER_SIZE_STEP_PERCENT,
+    MAX_CELEBRATION_DELAY_MS,
+    MAX_LETTER_SIZE_PERCENT,
+    MAX_VOLUME_PERCENT,
+    MIN_LETTER_SIZE_PERCENT,
+    MIN_CELEBRATION_DELAY_MS,
+    getCategoryLabel,
+    getLocale,
+    t
+  } = ns.config;
   const { colorForChar, familyPictureKey, sanitizeWords: sanitizeWordList, stripAccents } = ns.model;
 
   class GameView {
@@ -28,13 +42,21 @@ window.GiocoTastiera = window.GiocoTastiera || {};
       this.closeLock = document.getElementById("closeLock");
       this.settingsGrid = document.getElementById("settingsGrid");
       this.showPictureToggle = document.getElementById("showPictureToggle");
+      this.enableCelebrationToggle = document.getElementById("enableCelebrationToggle");
       this.allowCelebrationSkipToggle = document.getElementById("allowCelebrationSkipToggle");
+      this.highlightExpectedLetterToggle = document.getElementById("highlightExpectedLetterToggle");
+      this.letterSizeRange = document.getElementById("letterSizeRange");
+      this.letterSizeValue = document.getElementById("letterSizeValue");
       this.speechVolumeRange = document.getElementById("speechVolumeRange");
       this.speechVolumeValue = document.getElementById("speechVolumeValue");
       this.celebrationMusicVolumeRange = document.getElementById("celebrationMusicVolumeRange");
       this.celebrationMusicVolumeValue = document.getElementById("celebrationMusicVolumeValue");
+      this.celebrationDelayRange = document.getElementById("celebrationDelayRange");
+      this.celebrationDelayValue = document.getElementById("celebrationDelayValue");
       this.picturePositionSide = document.getElementById("picturePositionSide");
       this.picturePositionBottom = document.getElementById("picturePositionBottom");
+      this.customCategoryNameInput = document.getElementById("customCategoryNameInput");
+      this.addCategoryButton = document.getElementById("addCategoryButton");
       this.saveSettings = document.getElementById("saveSettings");
       this.resetSettings = document.getElementById("resetSettings");
       this.closeSettings = document.getElementById("closeSettings");
@@ -42,6 +64,7 @@ window.GiocoTastiera = window.GiocoTastiera || {};
       this.fxCtx = this.fxCanvas.getContext("2d");
       this.fxState = null;
       this.familyPictureDrafts = {};
+      this.customCategoryDrafts = [];
       this.familyWordsInput = null;
       this.familyPicturesEditor = null;
 
@@ -52,6 +75,12 @@ window.GiocoTastiera = window.GiocoTastiera || {};
     }
 
     bindSettingsInputs(){
+      if(this.letterSizeRange){
+        this.letterSizeRange.addEventListener("input", () => {
+          this.updatePercentLabel(this.letterSizeRange, this.letterSizeValue);
+        });
+      }
+
       if(this.speechVolumeRange){
         this.speechVolumeRange.addEventListener("input", () => {
           this.updateVolumeLabel(this.speechVolumeRange, this.speechVolumeValue);
@@ -63,11 +92,43 @@ window.GiocoTastiera = window.GiocoTastiera || {};
           this.updateVolumeLabel(this.celebrationMusicVolumeRange, this.celebrationMusicVolumeValue);
         });
       }
+
+      if(this.celebrationDelayRange){
+        this.celebrationDelayRange.addEventListener("input", () => {
+          this.updateDelayLabel(this.celebrationDelayRange, this.celebrationDelayValue);
+        });
+      }
+
+      if(this.addCategoryButton){
+        this.addCategoryButton.addEventListener("click", () => {
+          this.addCustomCategory();
+        });
+      }
+
+      if(this.customCategoryNameInput){
+        this.customCategoryNameInput.addEventListener("keydown", event => {
+          if(event.key !== "Enter") return;
+          event.preventDefault();
+          this.addCustomCategory();
+        });
+      }
     }
 
     updateVolumeLabel(input, output){
       if(!input || !output) return;
       output.textContent = `${input.value}%`;
+    }
+
+    updatePercentLabel(input, output){
+      if(!input || !output) return;
+      output.textContent = `${input.value}%`;
+    }
+
+    updateDelayLabel(input, output){
+      if(!input || !output) return;
+      const parsed = Number(input.value);
+      const value = Number.isFinite(parsed) ? parsed : 0;
+      output.textContent = `${(value / 1000).toFixed(value % 1000 === 0 ? 0 : 2)} s`;
     }
 
     volumeToSlider(volume){
@@ -81,6 +142,36 @@ window.GiocoTastiera = window.GiocoTastiera || {};
       const parsed = Number(input.value);
       if(!Number.isFinite(parsed)) return fallback;
       return Math.min(Math.max(parsed, 0), MAX_VOLUME_PERCENT);
+    }
+
+    letterSizeToSlider(value){
+      const parsed = Number(value);
+      const safe = Number.isFinite(parsed) ? parsed : DEFAULT_LETTER_SIZE_PERCENT;
+      const clamped = Math.min(Math.max(safe, MIN_LETTER_SIZE_PERCENT), MAX_LETTER_SIZE_PERCENT);
+      return String(Math.round(clamped / LETTER_SIZE_STEP_PERCENT) * LETTER_SIZE_STEP_PERCENT);
+    }
+
+    sliderToLetterSize(input, fallback = DEFAULT_LETTER_SIZE_PERCENT){
+      if(!input) return fallback;
+      const parsed = Number(input.value);
+      if(!Number.isFinite(parsed)) return fallback;
+      const clamped = Math.min(Math.max(parsed, MIN_LETTER_SIZE_PERCENT), MAX_LETTER_SIZE_PERCENT);
+      return Math.round(clamped / LETTER_SIZE_STEP_PERCENT) * LETTER_SIZE_STEP_PERCENT;
+    }
+
+    delayToSlider(delay){
+      const parsed = Number(delay);
+      const safe = Number.isFinite(parsed) ? parsed : MIN_CELEBRATION_DELAY_MS;
+      const clamped = Math.min(Math.max(safe, MIN_CELEBRATION_DELAY_MS), MAX_CELEBRATION_DELAY_MS);
+      return String(Math.round(clamped / CELEBRATION_DELAY_STEP_MS) * CELEBRATION_DELAY_STEP_MS);
+    }
+
+    sliderToDelay(input, fallback){
+      if(!input) return fallback;
+      const parsed = Number(input.value);
+      if(!Number.isFinite(parsed)) return fallback;
+      const clamped = Math.min(Math.max(parsed, MIN_CELEBRATION_DELAY_MS), MAX_CELEBRATION_DELAY_MS);
+      return Math.round(clamped / CELEBRATION_DELAY_STEP_MS) * CELEBRATION_DELAY_STEP_MS;
     }
 
     applyI18n(){
@@ -105,32 +196,85 @@ window.GiocoTastiera = window.GiocoTastiera || {};
       this.challengeLabel.textContent = t("ui.challengeLabel", { a: 3, b: 4 });
     }
 
+    buildCategoryCard(category, options = {}){
+      const card = document.createElement("section");
+      card.className = `settings-card${options.isCustom ? " custom-category-card" : ""}`;
+
+      if(options.isCustom){
+        card.dataset.customCategory = "true";
+        card.dataset.customId = category.id;
+        const header = document.createElement("header");
+        const label = document.createElement("label");
+
+        const toggleRow = document.createElement("span");
+        toggleRow.className = "custom-category-checkbox";
+
+        const enabledInput = document.createElement("input");
+        enabledInput.type = "checkbox";
+        enabledInput.dataset.customEnabled = category.id;
+        enabledInput.checked = category.enabled !== false;
+
+        const toggleText = document.createElement("span");
+        toggleText.textContent = t("ui.customCategoryName");
+
+        toggleRow.append(enabledInput, toggleText);
+
+        const labelInput = document.createElement("input");
+        labelInput.type = "text";
+        labelInput.dataset.customLabel = category.id;
+        labelInput.maxLength = 32;
+        labelInput.placeholder = t("ui.customCategoryName");
+        labelInput.value = category.label || "";
+
+        label.append(toggleRow, labelInput);
+
+        const removeButton = document.createElement("button");
+        removeButton.type = "button";
+        removeButton.className = "secondary icon-cta custom-remove-button";
+        removeButton.dataset.removeCustom = category.id;
+        removeButton.textContent = "🗑";
+        removeButton.setAttribute("aria-label", t("ui.removeCategory"));
+        removeButton.title = t("ui.removeCategory");
+
+        const wordsInput = document.createElement("textarea");
+        wordsInput.dataset.customWords = category.id;
+        wordsInput.spellcheck = false;
+        wordsInput.placeholder = t("ui.customCategoryWords");
+        wordsInput.value = Array.isArray(category.words) ? category.words.join(", ") : "";
+
+        header.append(label, removeButton);
+        card.append(header, wordsInput);
+        return card;
+      }
+
+      card.innerHTML = category === "famiglia"
+        ? `
+          <header>
+            <label>
+              <input type="checkbox" data-enabled="${category}">
+              ${getCategoryLabel(category)}
+            </label>
+          </header>
+          <textarea data-words="${category}" spellcheck="false"></textarea>
+          <p class="settings-inline-note">${t("ui.familyInlineNote")}</p>
+          <div class="family-pictures-editor" data-family-pictures></div>
+        `
+        : `
+          <header>
+            <label>
+              <input type="checkbox" data-enabled="${category}">
+              ${getCategoryLabel(category)}
+            </label>
+          </header>
+          <textarea data-words="${category}" spellcheck="false"></textarea>
+        `;
+      return card;
+    }
+
     buildSettingsEditor(){
       this.settingsGrid.innerHTML = "";
       for(const category of CATEGORY_ORDER){
-        const card = document.createElement("section");
-        card.className = "settings-card";
-        card.innerHTML = category === "famiglia"
-          ? `
-            <header>
-              <label>
-                <input type="checkbox" data-enabled="${category}">
-                ${getCategoryLabel(category)}
-              </label>
-            </header>
-            <textarea data-words="${category}" spellcheck="false"></textarea>
-            <p class="settings-inline-note">${t("ui.familyInlineNote")}</p>
-            <div class="family-pictures-editor" data-family-pictures></div>
-          `
-          : `
-            <header>
-              <label>
-                <input type="checkbox" data-enabled="${category}">
-                ${getCategoryLabel(category)}
-              </label>
-            </header>
-            <textarea data-words="${category}" spellcheck="false"></textarea>
-          `;
+        const card = this.buildCategoryCard(category);
         this.settingsGrid.appendChild(card);
       }
 
@@ -139,6 +283,82 @@ window.GiocoTastiera = window.GiocoTastiera || {};
       if(this.familyWordsInput){
         this.familyWordsInput.addEventListener("input", () => this.syncFamilyPicturesEditor());
       }
+
+      this.settingsGrid.addEventListener("click", event => {
+        const button = event.target.closest("[data-remove-custom]");
+        if(!button) return;
+        this.removeCustomCategory(button.dataset.removeCustom);
+      });
+    }
+
+    readCustomCategoriesFromEditor(){
+      return Array.from(this.settingsGrid.querySelectorAll("[data-custom-category]"))
+        .map(card => {
+          const id = card.dataset.customId;
+          const labelInput = card.querySelector(`[data-custom-label="${id}"]`);
+          const enabledInput = card.querySelector(`[data-custom-enabled="${id}"]`);
+          const wordsInput = card.querySelector(`[data-custom-words="${id}"]`);
+          return {
+            id,
+            label: labelInput ? labelInput.value.trim() : "",
+            enabled: Boolean(enabledInput && enabledInput.checked),
+            words: sanitizeWordList(wordsInput ? wordsInput.value : "")
+          };
+        })
+        .filter(category => category.label);
+    }
+
+    renderCustomCategoryCards(categories){
+      this.settingsGrid.querySelectorAll("[data-custom-category]").forEach(card => card.remove());
+
+      for(const category of categories){
+        const card = this.buildCategoryCard(category, { isCustom: true });
+        this.settingsGrid.appendChild(card);
+      }
+    }
+
+    syncCustomCategoryDrafts(){
+      this.customCategoryDrafts = this.readCustomCategoriesFromEditor();
+    }
+
+    createCustomCategoryId(label){
+      const base = stripAccents(String(label || "categoria"))
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, "-")
+        .replace(/^-+|-+$/g, "") || "categoria";
+
+      let candidate = `custom-${base}`;
+      let index = 2;
+      const usedIds = new Set(CATEGORY_ORDER.concat(this.customCategoryDrafts.map(category => category.id)));
+      while(usedIds.has(candidate)){
+        candidate = `custom-${base}-${index}`;
+        index += 1;
+      }
+      return candidate;
+    }
+
+    addCustomCategory(){
+      const label = this.customCategoryNameInput ? this.customCategoryNameInput.value.trim() : "";
+      if(!label) return;
+
+      this.syncCustomCategoryDrafts();
+      this.customCategoryDrafts.push({
+        id: this.createCustomCategoryId(label),
+        label,
+        enabled: true,
+        words: []
+      });
+      this.renderCustomCategoryCards(this.customCategoryDrafts);
+      if(this.customCategoryNameInput){
+        this.customCategoryNameInput.value = "";
+        this.customCategoryNameInput.focus();
+      }
+    }
+
+    removeCustomCategory(id){
+      this.syncCustomCategoryDrafts();
+      this.customCategoryDrafts = this.customCategoryDrafts.filter(category => category.id !== id);
+      this.renderCustomCategoryCards(this.customCategoryDrafts);
     }
 
     readLocalImage(file){
@@ -255,6 +475,11 @@ window.GiocoTastiera = window.GiocoTastiera || {};
       this.layout.classList.toggle("picture-bottom", settings.picturePosition === "bottom");
     }
 
+    applyLetterSize(settings){
+      const scale = (Number(settings && settings.letterSizePercent) || DEFAULT_LETTER_SIZE_PERCENT) / 100;
+      document.documentElement.style.setProperty("--letter-scale", String(scale));
+    }
+
     renderTypedBar(insertedLetters){
       this.typedDiv.innerHTML = "";
       for(const letter of insertedLetters){
@@ -266,7 +491,27 @@ window.GiocoTastiera = window.GiocoTastiera || {};
       }
     }
 
-    renderWord(entry){
+    updateExpectedLetterHighlight(index, enabled){
+      const letters = this.wordDiv.children;
+      const boxes = this.boxDiv.children;
+
+      for(const letter of letters){
+        letter.classList.remove("expected");
+      }
+
+      for(const box of boxes){
+        box.classList.remove("expected");
+      }
+
+      if(!enabled) return;
+
+      const nextLetter = letters[index];
+      const nextBox = boxes[index];
+      if(nextLetter) nextLetter.classList.add("expected");
+      if(nextBox) nextBox.classList.add("expected");
+    }
+
+    renderWord(entry, settings){
       const displayWord = entry.word.toUpperCase();
       const normalizedWord = stripAccents(displayWord);
       this.wordDiv.innerHTML = "";
@@ -287,20 +532,31 @@ window.GiocoTastiera = window.GiocoTastiera || {};
         if(i === 0) box.classList.add("active");
         this.boxDiv.appendChild(box);
       }
+
+      this.updateExpectedLetterHighlight(0, settings && settings.highlightExpectedLetter !== false);
     }
 
-    markCorrectLetter(index, visibleLetter, base){
+    markCorrectLetter(index, visibleLetter, base, settings){
       const currentBox = this.boxDiv.children[index];
       if(!currentBox) return;
       currentBox.textContent = visibleLetter;
       currentBox.style.background = colorForChar(base);
       currentBox.style.color = "#fff";
       currentBox.classList.remove("active");
+      currentBox.classList.remove("expected");
+
+      const currentLetter = this.wordDiv.children[index];
+      if(currentLetter){
+        currentLetter.classList.remove("expected");
+      }
+
+      this.updateExpectedLetterHighlight(index + 1, settings && settings.highlightExpectedLetter !== false);
     }
 
-    highlightNextBox(index){
+    highlightNextBox(index, settings){
       const nextBox = this.boxDiv.children[index];
       if(nextBox) nextBox.classList.add("active");
+      this.updateExpectedLetterHighlight(index, settings && settings.highlightExpectedLetter !== false);
     }
 
     setPictureLoading(isLoading){
@@ -330,7 +586,7 @@ window.GiocoTastiera = window.GiocoTastiera || {};
     }
 
     async renderPicture(entry, settings, imageService, requestId, getRequestId){
-      this.pictureTitle.textContent = t("ui.pictureCategoryTitle", { category: getCategoryLabel(entry.category) });
+      this.pictureTitle.textContent = t("ui.pictureCategoryTitle", { category: entry.categoryLabel || getCategoryLabel(entry.category) });
       if(!settings.showPicture){
         this.hidePictureCard();
         return;
@@ -372,12 +628,26 @@ window.GiocoTastiera = window.GiocoTastiera || {};
 
     fillSettingsEditor(settings){
       this.familyPictureDrafts = Object.assign({}, settings.familyPictures || {});
+      this.customCategoryDrafts = Array.isArray(settings.customCategories)
+        ? settings.customCategories.map(category => ({
+          id: category.id,
+          label: category.label,
+          enabled: category.enabled !== false,
+          words: Array.isArray(category.words) ? [...category.words] : []
+        }))
+        : [];
       this.showPictureToggle.checked = settings.showPicture;
+      this.enableCelebrationToggle.checked = settings.enableCelebration !== false;
       this.allowCelebrationSkipToggle.checked = settings.allowCelebrationSkip !== false;
+      this.highlightExpectedLetterToggle.checked = settings.highlightExpectedLetter !== false;
+      this.letterSizeRange.value = this.letterSizeToSlider(settings.letterSizePercent);
       this.speechVolumeRange.value = this.volumeToSlider(settings.speechVolume);
       this.celebrationMusicVolumeRange.value = this.volumeToSlider(settings.celebrationMusicVolume);
+      this.celebrationDelayRange.value = this.delayToSlider(settings.celebrationStartDelayMs);
+      this.updatePercentLabel(this.letterSizeRange, this.letterSizeValue);
       this.updateVolumeLabel(this.speechVolumeRange, this.speechVolumeValue);
       this.updateVolumeLabel(this.celebrationMusicVolumeRange, this.celebrationMusicVolumeValue);
+      this.updateDelayLabel(this.celebrationDelayRange, this.celebrationDelayValue);
       this.picturePositionSide.checked = settings.picturePosition !== "bottom";
       this.picturePositionBottom.checked = settings.picturePosition === "bottom";
       for(const category of CATEGORY_ORDER){
@@ -386,15 +656,21 @@ window.GiocoTastiera = window.GiocoTastiera || {};
         if(enabledInput) enabledInput.checked = settings.enabledCategories[category];
         if(wordsInput) wordsInput.value = settings.categories[category].join(", ");
       }
+      this.renderCustomCategoryCards(this.customCategoryDrafts);
+      if(this.customCategoryNameInput) this.customCategoryNameInput.value = "";
       this.syncFamilyPicturesEditor();
     }
 
     readSettingsEditor(defaultSettingsFactory, sanitizeWords, defaultLibrary){
       const next = defaultSettingsFactory();
       next.showPicture = this.showPictureToggle.checked;
+      next.enableCelebration = this.enableCelebrationToggle.checked;
       next.allowCelebrationSkip = this.allowCelebrationSkipToggle.checked;
+      next.highlightExpectedLetter = this.highlightExpectedLetterToggle.checked;
+      next.letterSizePercent = this.sliderToLetterSize(this.letterSizeRange, next.letterSizePercent);
       next.speechVolume = this.sliderToVolume(this.speechVolumeRange, next.speechVolume);
       next.celebrationMusicVolume = this.sliderToVolume(this.celebrationMusicVolumeRange, next.celebrationMusicVolume);
+      next.celebrationStartDelayMs = this.sliderToDelay(this.celebrationDelayRange, next.celebrationStartDelayMs);
       next.picturePosition = this.picturePositionBottom.checked ? "bottom" : "side";
 
       for(const category of CATEGORY_ORDER){
@@ -404,9 +680,15 @@ window.GiocoTastiera = window.GiocoTastiera || {};
         next.categories[category] = sanitizeWords(wordsInput ? wordsInput.value : defaultLibrary[category]);
       }
 
+      next.customCategories = this.readCustomCategoriesFromEditor();
+
       if(!CATEGORY_ORDER.some(category => next.enabledCategories[category] && next.categories[category].length)){
-        next.enabledCategories.famiglia = true;
-        next.categories.famiglia = sanitizeWords(defaultLibrary.famiglia);
+        if(next.customCategories.some(category => category.enabled && category.words.length)){
+          next.enabledCategories.famiglia = false;
+        }else{
+          next.enabledCategories.famiglia = true;
+          next.categories.famiglia = sanitizeWords(defaultLibrary.famiglia);
+        }
       }
 
       next.familyPictures = this.readFamilyPictures(next.categories.famiglia);

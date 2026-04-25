@@ -32,7 +32,7 @@ window.GiocoTastiera = window.GiocoTastiera || {};
 
     buildSearchTerms(entry){
       const baseTerm = this.normalizeSearchTerm(entry);
-      const categoryLabel = getCategoryLabel(entry.category).toLowerCase();
+      const categoryLabel = String(entry.categoryLabel || getCategoryLabel(entry.category) || "").toLowerCase();
       const terms = [
         baseTerm,
         baseTerm.includes(categoryLabel) ? "" : `${baseTerm} ${categoryLabel}`

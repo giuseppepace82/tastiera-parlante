@@ -6,8 +6,7 @@ window.GiocoTastiera = window.GiocoTastiera || {};
     CELEBRATION_MS,
     DEFAULT_LIBRARY,
     FADE_IN_MS,
-    FADE_OUT_MS,
-    MUSIC_START_DELAY_MS
+    FADE_OUT_MS
   } = ns.config;
   const { GameModel, createDefaultSettings, sanitizeWords, stripAccents } = ns.model;
   const { ImageService, SpeechService } = ns.services;
@@ -23,24 +22,31 @@ window.GiocoTastiera = window.GiocoTastiera || {};
       this.celebrationActive = false;
       this.currentImageRequest = 0;
       this.audioFadeFrame = 0;
+      this.wordAnnouncementTimer = 0;
       this.audioContext = null;
       this.musicGainNode = null;
 
       this.setupMusicGain();
 
-      document.addEventListener("click", this.enableSpeechOnce, { once: true });
-      document.addEventListener("keydown", this.enableSpeechOnce, { once: true });
+      document.addEventListener("click", this.resumeAudioContextOnce, { once: true });
+      document.addEventListener("keydown", this.resumeAudioContextOnce, { once: true });
     }
 
-    enableSpeechOnce = () => {
+    enableSpeech = () => {
       this.model.speechEnabled = true;
       this.speechService.enable();
       this.resumeAudioContext();
     };
 
+    resumeAudioContextOnce = () => {
+      this.enableSpeech();
+    };
+
     init(){
+      this.enableSpeech();
       this.bindEvents();
       this.applyAudioSettings();
+      this.view.applyLetterSize(this.model.settings);
       this.view.renderTypedBar(this.model.insertedLetters);
       this.view.applyPictureLayout(this.model.settings);
       this.newWord();
@@ -76,6 +82,10 @@ window.GiocoTastiera = window.GiocoTastiera || {};
 
     getMusicOutputVolume(){
       return this.model.settings.celebrationMusicVolume / BASE_VOLUME_PERCENT;
+    }
+
+    getCelebrationStartDelay(){
+      return Number(this.model.settings.celebrationStartDelayMs) || 0;
     }
 
     setMusicLevel(level){
@@ -120,6 +130,7 @@ window.GiocoTastiera = window.GiocoTastiera || {};
         const nextSettings = this.view.readSettingsEditor(createDefaultSettings, sanitizeWords, DEFAULT_LIBRARY);
         this.model.updateSettings(nextSettings);
         this.applyAudioSettings();
+        this.view.applyLetterSize(this.model.settings);
         this.view.applyPictureLayout(this.model.settings);
         this.view.closeOverlay(this.view.settingsOverlay);
         this.newWord();
@@ -128,6 +139,7 @@ window.GiocoTastiera = window.GiocoTastiera || {};
       this.view.resetSettings.addEventListener("click", () => {
         this.model.resetSettings();
         this.applyAudioSettings();
+        this.view.applyLetterSize(this.model.settings);
         this.view.applyPictureLayout(this.model.settings);
         this.view.fillSettingsEditor(this.model.settings);
       });
@@ -172,16 +184,23 @@ window.GiocoTastiera = window.GiocoTastiera || {};
       if(!result.accepted) return;
 
       this.view.renderTypedBar(this.model.insertedLetters);
-      this.view.markCorrectLetter(result.currentIndex - 1, result.visibleLetter, result.base);
+      this.view.markCorrectLetter(result.currentIndex - 1, result.visibleLetter, result.base, this.model.settings);
 
       if(!result.completed){
-        this.view.highlightNextBox(result.currentIndex);
+        this.view.highlightNextBox(result.currentIndex, this.model.settings);
         return;
       }
 
       this.model.clearInsertedLetters();
       this.view.renderTypedBar(this.model.insertedLetters);
       this.speechService.speakWord(this.model.currentEntry.word);
+      if(!this.model.settings.enableCelebration){
+        const nextWordTimer = setTimeout(() => {
+          this.newWord();
+        }, this.getCelebrationStartDelay());
+        this.celebrationTimers.push(nextWordTimer);
+        return;
+      }
       this.celebrate();
     };
 
@@ -197,6 +216,20 @@ window.GiocoTastiera = window.GiocoTastiera || {};
         cancelAnimationFrame(this.audioFadeFrame);
         this.audioFadeFrame = 0;
       }
+    }
+
+    clearWordAnnouncement(){
+      if(!this.wordAnnouncementTimer) return;
+      clearTimeout(this.wordAnnouncementTimer);
+      this.wordAnnouncementTimer = 0;
+    }
+
+    scheduleWordAnnouncement(word, delay = 120){
+      this.clearWordAnnouncement();
+      this.wordAnnouncementTimer = setTimeout(() => {
+        this.wordAnnouncementTimer = 0;
+        this.speechService.speakWord(word);
+      }, delay);
     }
 
     fadeVolume(from, to, duration, done){
@@ -242,14 +275,15 @@ window.GiocoTastiera = window.GiocoTastiera || {};
     celebrate(){
       this.clearCelebrationTimers();
       this.celebrationActive = true;
+      const celebrationDelay = this.getCelebrationStartDelay();
       const musicTimer = setTimeout(() => {
         this.playMusic();
         this.view.startCelebrationFx();
-      }, MUSIC_START_DELAY_MS);
+      }, celebrationDelay);
 
       const nextWordTimer = setTimeout(() => {
         this.finishCelebration();
-      }, MUSIC_START_DELAY_MS + CELEBRATION_MS);
+      }, celebrationDelay + CELEBRATION_MS);
 
       this.celebrationTimers.push(musicTimer, nextWordTimer);
     }
@@ -273,15 +307,16 @@ window.GiocoTastiera = window.GiocoTastiera || {};
       this.celebrationActive = false;
       this.clearCelebrationTimers();
       this.clearAudioFade();
+      this.clearWordAnnouncement();
       this.view.stopCelebrationFx();
       this.view.audio.pause();
       this.setMusicLevel(0);
 
       const entry = this.model.pickNextWord();
       this.view.renderTypedBar(this.model.insertedLetters);
-      this.view.renderWord(entry);
+      this.view.renderWord(entry, this.model.settings);
       this.renderPicture(entry);
-      this.speechService.speakWord(entry.word);
+      this.scheduleWordAnnouncement(entry.word);
     }
   }
 

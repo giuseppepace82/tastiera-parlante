@@ -1,7 +1,7 @@
 window.GiocoTastiera = window.GiocoTastiera || {};
 
 (function(ns){
-  const { LETTER_NAMES_IT } = ns.config;
+  const { LETTER_NAMES_IT, SPEECH_VOLUME_BOOST } = ns.config;
   const { stripAccents } = ns.model;
 
   class SpeechService {
@@ -64,7 +64,9 @@ window.GiocoTastiera = window.GiocoTastiera || {};
       const utterance = new SpeechSynthesisUtterance(text);
       utterance.lang = options.lang || "it-IT";
       if(this.italianVoice) utterance.voice = this.italianVoice;
-      utterance.volume = options.volume ?? this.volume;
+      const requestedVolume = Number(options.volume ?? this.volume);
+      const boostedVolume = requestedVolume * SPEECH_VOLUME_BOOST;
+      utterance.volume = Math.min(Math.max(boostedVolume, 0), 1);
       utterance.rate = options.rate ?? 0.72;
       utterance.pitch = options.pitch ?? 0.95;
       speechSynthesis.cancel();
