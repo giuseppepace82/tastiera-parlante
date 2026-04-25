@@ -42,6 +42,10 @@ Il focus NON è la performance ma:
   - viene pronunciata
   - NON viene inserita
 
+Supporti opzionali attuali:
+- la prossima lettera da digitare può essere evidenziata visivamente
+- la dimensione delle lettere e delle caselle è configurabile da setup
+
 Quando la parola è completa:
 1. viene pronunciata tutta la parola
 2. dopo un breve ritardo parte una celebrazione visiva + musicale
@@ -63,12 +67,15 @@ Applicato a:
 ### UI:
 - Tutto in MAIUSCOLO
 - Casella attiva → bordo GIALLO
+- Prossima lettera attesa → evidenziazione opzionale su lettera in alto + casella corrispondente
 - Layout perfettamente allineato (grid)
 - immagine guida opzionale
 - layout immagine configurabile:
   - laterale
   - sotto alle parole
 - durante il cambio immagine deve essere mostrato uno spinner
+- il pannello lettere può essere scalato da setup
+- il pannello di gioco e il pannello immagine devono restare visivamente allineati in altezza nel layout desktop
 
 ---
 
@@ -83,6 +90,8 @@ Applicato a:
 - Le parole → pronuncia italiana lenta e comprensibile
 - Le lettere → pronuncia italiana chiara, leggermente più rapida rispetto alle parole
 - usare preferibilmente una voce italiana disponibile sul dispositivo/browser
+- il volume del parlato è configurabile da setup ed è ulteriormente amplificato rispetto al livello base scelto
+- all’avvio della pagina la parola corrente deve essere annunciata subito, senza richiedere un click preliminare sulla pagina, compatibilmente con i limiti del browser
 
 ### Modalità fonetica:
 Attivabile via toggle UI
@@ -101,7 +110,7 @@ File:
 - `assets/sounds/musichetta_gioco_1.mp3`
 
 Regole attuali:
-- al completamento della parola la musichetta parte dopo 2 secondi
+- al completamento della parola la musichetta parte dopo un ritardo configurabile da setup
 - la clip musicale dura 6 secondi
 - la clip viene presa da un punto casuale del brano
 - applicare dissolvenza audio in entrata e uscita
@@ -123,6 +132,7 @@ Regole attuali:
 - quando una parola è ambigua, la ricerca deve includere anche la categoria
   - esempio: `RISO` categoria `CIBO` non deve essere interpretato come sorriso/risata
 - se un’immagine non si carica, il sistema deve tentare automaticamente altri candidati prima di mostrare fallback o errore
+- per le categorie personalizzate, nelle ricerche realtime il nome della categoria deve essere usato come contesto semantico aggiuntivo
 
 ---
 
@@ -138,13 +148,37 @@ Accesso:
 - accesso protetto tramite risoluzione di una piccola somma numerica
 
 Funzioni attuali del setup:
-- attivare o disattivare la visualizzazione dell’immagine guida
-- scegliere la posizione dell’immagine:
-  - laterale
-  - sotto alle parole
-- attivare o disattivare singole categorie di parole
-- modificare l’elenco delle parole per categoria
-- ripristinare una baseline predefinita di parole
+- il setup è organizzato in sezioni funzionali:
+  - Audio
+  - Pannello lettere
+  - Immagini
+  - Cerimonia
+  - Categorie
+- sezione Audio:
+  - regolare il volume del parlato
+  - regolare il volume della musica della cerimonia
+- sezione Pannello lettere:
+  - regolare la dimensione di lettere e caselle
+  - attivare o disattivare l’evidenziazione della prossima lettera da digitare
+- sezione Immagini:
+  - attivare o disattivare la visualizzazione dell’immagine guida
+  - scegliere la posizione dell’immagine:
+    - laterale
+    - sotto alle parole
+- sezione Cerimonia:
+  - attivare o disattivare la cerimonia finale
+  - attivare o disattivare l’interruzione della cerimonia tramite click o barra spaziatrice
+  - regolare il tempo di attesa prima dell’avvio della cerimonia
+- sezione Categorie:
+  - attivare o disattivare singole categorie baseline
+  - modificare l’elenco delle parole per categoria
+  - aggiungere nuove categorie personalizzate
+  - rimuovere categorie personalizzate
+  - ripristinare una baseline predefinita di parole
+
+CTA attuali nel setup categorie:
+- aggiunta categoria personalizzata tramite icona `+`
+- rimozione categoria personalizzata tramite icona cestino
 
 Categorie baseline attuali:
 - famiglia
@@ -154,6 +188,12 @@ Categorie baseline attuali:
 - colori
 - mezzi
 - natura
+
+Categorie personalizzate:
+- possono essere create da setup
+- hanno nome modificabile, flag di attivazione e lista parole dedicata
+- sono persistite in `localStorage`
+- entrano nel pool di selezione delle parole come le categorie baseline
 
 Persistenza:
 - le impostazioni vengono salvate in `localStorage`
@@ -196,6 +236,7 @@ Separazione delle responsabilità:
 Nota tecnica importante:
 - il caricamento JS è basato su script classici separati, non su ES modules
 - evitare di riportare logica applicativa inline dentro `index.html`
+- le configurazioni UI del setup devono riflettere sempre la struttura funzionale reale del gioco, non solo lo stato tecnico del codice
 
 ---
 
