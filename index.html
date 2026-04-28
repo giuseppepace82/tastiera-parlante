@@ -79,6 +79,8 @@
   --expected-lift:-4px;
   --expected-scale:1.04;
   --decor-opacity:1;
+  --picture-panel-scale:1.15;
+  --picture-side-width:calc(300px + ((var(--picture-panel-scale) - 1) * 420px));
 }
 *{ box-sizing:border-box; }
 body{
@@ -123,7 +125,7 @@ button, input, textarea{
 .screen{
   position:relative;
   z-index:1;
-  width:min(1120px, calc(100% - 28px));
+  width:min(1320px, calc(100% - 24px));
   margin:0 auto;
   padding:22px 0 40px;
 }
@@ -164,11 +166,12 @@ button, input, textarea{
   display:inline-flex;
   align-items:center;
   justify-content:flex-start;
-  max-width:min(100%, 430px);
+  width:min(100%, 560px);
+  max-width:560px;
 }
 .brand-logo{
   display:block;
-  width:min(100%, 430px);
+  width:100%;
   height:auto;
 }
 h1{
@@ -195,6 +198,11 @@ h1{
   letter-spacing:0.08em;
   text-transform:uppercase;
 }
+#pictureTitle{
+  color:var(--title-ink);
+  font-family:"Arial Rounded MT Bold", "Avenir Next Rounded", "Trebuchet MS", sans-serif;
+  font-weight:900;
+}
 .setup-button{
   width:52px;
   height:52px;
@@ -210,8 +218,8 @@ h1{
 }
 .layout{
   display:grid;
-  grid-template-columns:minmax(320px, 1.2fr) minmax(280px, 0.8fr);
-  gap:24px;
+  grid-template-columns:minmax(0, 1fr) minmax(240px, var(--picture-side-width));
+  gap:18px;
   align-items:stretch;
 }
 .layout.picture-bottom{
@@ -219,11 +227,11 @@ h1{
 }
 .layout.picture-bottom .picture-card{
   width:100%;
-  max-width:860px;
+  max-width:calc(860px * var(--picture-panel-scale));
   margin:0 auto;
 }
 .layout.picture-bottom .picture-frame{
-  min-height:280px;
+  min-height:calc(280px * var(--picture-panel-scale));
 }
 .panel{
   background:var(--panel-bg);
@@ -240,12 +248,14 @@ h1{
   gap:14px;
 }
 .layout:not(.picture-bottom) .picture-card{
-  padding:14px;
+  width:min(100%, var(--picture-side-width));
+  padding:12px;
   gap:10px;
+  justify-self:end;
 }
 .picture-frame{
   flex:1;
-  min-height:320px;
+  min-height:calc(320px * var(--picture-panel-scale));
   border-radius:24px;
   border:3px dashed var(--frame-border);
   background:linear-gradient(180deg, var(--frame-start) 0%, var(--frame-end) 100%);
@@ -254,6 +264,58 @@ h1{
   display:flex;
   align-items:center;
   justify-content:center;
+}
+.picture-info-button{
+  position:absolute;
+  top:12px;
+  right:12px;
+  width:32px;
+  height:32px;
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  border:none;
+  border-radius:50%;
+  background:rgba(255,255,255,0.92);
+  color:var(--title-ink);
+  box-shadow:0 8px 18px rgba(0,0,0,0.12);
+  font-family:"Arial Rounded MT Bold", "Avenir Next Rounded", "Trebuchet MS", sans-serif;
+  font-size:1rem;
+  font-weight:900;
+  cursor:help;
+  z-index:2;
+}
+.picture-info-button[hidden]{
+  display:none;
+}
+.picture-info-tooltip{
+  position:absolute;
+  top:50px;
+  right:12px;
+  max-width:min(280px, calc(100% - 24px));
+  padding:10px 12px;
+  border-radius:14px;
+  background:rgba(255,255,255,0.97);
+  border:2px solid var(--surface-border);
+  box-shadow:0 12px 28px rgba(0,0,0,0.12);
+  color:var(--title-ink);
+  font-size:0.76rem;
+  line-height:1.35;
+  letter-spacing:0.03em;
+  text-transform:uppercase;
+  opacity:0;
+  transform:translateY(-4px);
+  pointer-events:none;
+  transition:opacity 120ms ease, transform 120ms ease;
+  z-index:2;
+}
+.picture-info-tooltip[hidden]{
+  display:none;
+}
+.picture-info-button:hover + .picture-info-tooltip,
+.picture-info-button:focus-visible + .picture-info-tooltip{
+  opacity:1;
+  transform:translateY(0);
 }
 .picture-frame img{
   width:100%;
@@ -291,6 +353,7 @@ h1{
   visibility:hidden;
 }
 .picture-source{
+  display:none;
   font-size:0.9rem;
   letter-spacing:0.08em;
   text-transform:uppercase;
@@ -317,7 +380,7 @@ h1{
   display:flex;
   justify-content:center;
   flex-wrap:wrap;
-  gap:12px;
+  gap:10px;
 }
 .word-grid,
 .typed-grid{
@@ -471,12 +534,43 @@ h1{
   margin:0;
   font-size:1rem;
   font-weight:900;
+  font-family:"Arial Rounded MT Bold", "Avenir Next Rounded", "Trebuchet MS", sans-serif;
   letter-spacing:0.08em;
   text-transform:uppercase;
   color:var(--title-ink);
 }
 .settings-section-body{
   margin-top:14px;
+}
+.settings-accordion{
+  padding:0;
+  overflow:hidden;
+}
+.settings-accordion summary{
+  list-style:none;
+  cursor:pointer;
+  padding:18px;
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+}
+.settings-accordion summary::-webkit-details-marker{
+  display:none;
+}
+.settings-accordion summary::after{
+  content:"+";
+  flex:0 0 auto;
+  font-size:1.4rem;
+  font-weight:900;
+  line-height:1;
+  color:var(--title-ink);
+}
+.settings-accordion[open] summary::after{
+  content:"−";
+}
+.settings-accordion .settings-section-body{
+  margin-top:0;
+  padding:0 18px 18px;
 }
 .option-title{
   margin-top:0;
@@ -807,6 +901,14 @@ h1{
   font-size:0.92rem;
   color:var(--muted-ink);
 }
+.app-credit{
+  margin-top:10px;
+  text-align:center;
+  font-size:0.72rem;
+  letter-spacing:0.02em;
+  color:var(--muted-ink);
+  opacity:0.72;
+}
 .settings-transfer-actions{
   display:flex;
   flex-wrap:wrap;
@@ -995,6 +1097,7 @@ canvas{
     padding:16px;
   }
   .brand-logo-shell{
+    width:min(100%, 460px);
     max-width:100%;
   }
   .panel,
@@ -1035,12 +1138,17 @@ canvas{
       <div class="pill" id="pictureTitle" data-i18n="ui.pictureGuide">IMMAGINE GUIDA</div>
       <div id="pictureFrame" class="picture-frame">
         <div id="pictureSpinner" class="picture-spinner" aria-hidden="true"></div>
+        <button id="pictureInfoButton" class="picture-info-button" type="button" data-i18n-aria-label="ui.pictureInfoLabel" aria-label="Informazioni immagine" hidden>i</button>
+        <div id="pictureInfoTooltip" class="picture-info-tooltip" hidden></div>
         <div id="picturePlaceholder" class="picture-placeholder" hidden></div>
         <img id="pictureImage" alt="" hidden>
       </div>
       <div id="pictureSource" class="picture-source" data-i18n="ui.pictureSourceRealtime">WEB IN TEMPO REALE</div>
     </aside>
   </div>
+
+  <div class="app-credit" data-i18n="ui.developerCredit">Applicazione sviluppata da Giuseppe Pace.</div>
+
 </div>
 
 <div id="audioStartOverlay" class="overlay audio-start-overlay" aria-hidden="true">
@@ -1212,6 +1320,15 @@ canvas{
             <span data-i18n="ui.enableImageCache">ATTIVA CACHE IMMAGINI</span>
           </label>
         </div>
+        <div class="slider-group">
+          <div class="slider-control">
+            <label for="picturePanelSizeRange">
+              <span data-i18n="ui.picturePanelSize">DIMENSIONE BOX IMMAGINE</span>
+              <span id="picturePanelSizeValue" class="slider-value">115%</span>
+            </label>
+            <input id="picturePanelSizeRange" type="range" min="80" max="150" step="5" value="115">
+          </div>
+        </div>
         <div class="option-title" data-i18n="ui.picturePositionTitle">POSIZIONE IMMAGINE</div>
         <div class="option-group">
             <label class="switch-row">
@@ -1264,8 +1381,10 @@ canvas{
         </div>
       </section>
 
-      <section class="settings-section">
-        <h3 class="settings-section-title" data-i18n="ui.categoriesTitle">CATEGORIE</h3>
+      <details class="settings-section settings-accordion">
+        <summary>
+          <h3 class="settings-section-title" data-i18n="ui.categoriesTitle">CATEGORIE</h3>
+        </summary>
         <div class="settings-section-body">
           <div class="category-toolbar">
             <input id="customCategoryNameInput" type="text" maxlength="32" data-i18n-placeholder="ui.addCategoryPlaceholder" placeholder="Nome nuova categoria">
@@ -1276,7 +1395,7 @@ canvas{
 
           <p class="settings-note" data-i18n-html="ui.settingsNoteHtml">Nella categoria famiglia puoi personalizzare le voci e associare a ciascuna una foto locale dal dispositivo. Se una foto non è presente, viene usato l'SVG generico in <code>assets/famiglia/generico.svg</code>. Le altre immagini vengono cercate sul web in tempo reale. Puoi anche aggiungere categorie personalizzate dal setup.</p>
         </div>
-      </section>
+      </details>
 
       <div class="modal-actions">
         <button id="saveSettings" class="primary" type="button" data-i18n="ui.save">SALVA</button>

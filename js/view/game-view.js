@@ -9,15 +9,19 @@ window.GiocoTastiera = window.GiocoTastiera || {};
     DEFAULT_COLOR_THEME,
     DEFAULT_IMAGE_PICKER_SOURCES,
     DEFAULT_LETTER_SIZE_PERCENT,
+    DEFAULT_PICTURE_PANEL_SIZE_PERCENT,
     DEFAULT_PICTURE_ZOOM_PERCENT,
     LETTER_SIZE_STEP_PERCENT,
     MAX_CELEBRATION_DELAY_MS,
     MAX_LETTER_SIZE_PERCENT,
+    MAX_PICTURE_PANEL_SIZE_PERCENT,
     MAX_PICTURE_ZOOM_PERCENT,
     MAX_VOLUME_PERCENT,
     MIN_LETTER_SIZE_PERCENT,
+    MIN_PICTURE_PANEL_SIZE_PERCENT,
     MIN_PICTURE_ZOOM_PERCENT,
     MIN_CELEBRATION_DELAY_MS,
+    PICTURE_PANEL_SIZE_STEP_PERCENT,
     PICTURE_ZOOM_STEP_PERCENT,
     getCategoryLabel,
     getLocale,
@@ -38,6 +42,8 @@ window.GiocoTastiera = window.GiocoTastiera || {};
       this.pictureSource = document.getElementById("pictureSource");
       this.pictureSpinner = document.getElementById("pictureSpinner");
       this.pictureFrame = document.getElementById("pictureFrame");
+      this.pictureInfoButton = document.getElementById("pictureInfoButton");
+      this.pictureInfoTooltip = document.getElementById("pictureInfoTooltip");
       this.picturePlaceholder = document.getElementById("picturePlaceholder");
       this.pictureImage = document.getElementById("pictureImage");
       this.setupButton = document.getElementById("setupButton");
@@ -75,6 +81,8 @@ window.GiocoTastiera = window.GiocoTastiera || {};
       this.themeStyleInputs = Array.from(document.querySelectorAll('input[name="themeStyle"]'));
       this.letterSizeRange = document.getElementById("letterSizeRange");
       this.letterSizeValue = document.getElementById("letterSizeValue");
+      this.picturePanelSizeRange = document.getElementById("picturePanelSizeRange");
+      this.picturePanelSizeValue = document.getElementById("picturePanelSizeValue");
       this.speechVolumeRange = document.getElementById("speechVolumeRange");
       this.speechVolumeValue = document.getElementById("speechVolumeValue");
       this.celebrationMusicVolumeRange = document.getElementById("celebrationMusicVolumeRange");
@@ -118,6 +126,12 @@ window.GiocoTastiera = window.GiocoTastiera || {};
       if(this.letterSizeRange){
         this.letterSizeRange.addEventListener("input", () => {
           this.updatePercentLabel(this.letterSizeRange, this.letterSizeValue);
+        });
+      }
+
+      if(this.picturePanelSizeRange){
+        this.picturePanelSizeRange.addEventListener("input", () => {
+          this.updatePercentLabel(this.picturePanelSizeRange, this.picturePanelSizeValue);
         });
       }
 
@@ -281,6 +295,21 @@ window.GiocoTastiera = window.GiocoTastiera || {};
       if(!Number.isFinite(parsed)) return fallback;
       const clamped = Math.min(Math.max(parsed, MIN_LETTER_SIZE_PERCENT), MAX_LETTER_SIZE_PERCENT);
       return Math.round(clamped / LETTER_SIZE_STEP_PERCENT) * LETTER_SIZE_STEP_PERCENT;
+    }
+
+    picturePanelSizeToSlider(value){
+      const parsed = Number(value);
+      const safe = Number.isFinite(parsed) ? parsed : DEFAULT_PICTURE_PANEL_SIZE_PERCENT;
+      const clamped = Math.min(Math.max(safe, MIN_PICTURE_PANEL_SIZE_PERCENT), MAX_PICTURE_PANEL_SIZE_PERCENT);
+      return String(Math.round(clamped / PICTURE_PANEL_SIZE_STEP_PERCENT) * PICTURE_PANEL_SIZE_STEP_PERCENT);
+    }
+
+    sliderToPicturePanelSize(input, fallback = DEFAULT_PICTURE_PANEL_SIZE_PERCENT){
+      if(!input) return fallback;
+      const parsed = Number(input.value);
+      if(!Number.isFinite(parsed)) return fallback;
+      const clamped = Math.min(Math.max(parsed, MIN_PICTURE_PANEL_SIZE_PERCENT), MAX_PICTURE_PANEL_SIZE_PERCENT);
+      return Math.round(clamped / PICTURE_PANEL_SIZE_STEP_PERCENT) * PICTURE_PANEL_SIZE_STEP_PERCENT;
     }
 
     pictureZoomToSlider(value){
@@ -986,6 +1015,11 @@ window.GiocoTastiera = window.GiocoTastiera || {};
       this.layout.classList.toggle("picture-bottom", settings.picturePosition === "bottom");
     }
 
+    applyPicturePanelSize(settings){
+      const scale = (Number(settings && settings.picturePanelSizePercent) || DEFAULT_PICTURE_PANEL_SIZE_PERCENT) / 100;
+      document.documentElement.style.setProperty("--picture-panel-scale", String(scale));
+    }
+
     applyLetterSize(settings){
       const scale = (Number(settings && settings.letterSizePercent) || DEFAULT_LETTER_SIZE_PERCENT) / 100;
       document.documentElement.style.setProperty("--letter-scale", String(scale));
@@ -1105,15 +1139,27 @@ window.GiocoTastiera = window.GiocoTastiera || {};
       this.pictureSpinner.classList.toggle("visible", isLoading);
     }
 
+    setPictureInfo(source, enabled = false){
+      if(this.pictureInfoTooltip){
+        this.pictureInfoTooltip.textContent = enabled ? String(source || "") : "";
+        this.pictureInfoTooltip.hidden = !enabled;
+      }
+      if(this.pictureInfoButton){
+        this.pictureInfoButton.hidden = !enabled;
+      }
+      this.pictureSource.textContent = source || "";
+    }
+
     showPicturePlaceholder(text, source, isLoading = false){
       this.pictureCard.classList.remove("picture-hidden");
       this.setPictureLoading(isLoading);
       this.pictureImage.hidden = true;
       this.pictureImage.removeAttribute("src");
+      this.pictureImage.alt = "";
       this.pictureImage.style.transform = "scale(1)";
       this.picturePlaceholder.hidden = !text;
       this.picturePlaceholder.textContent = text;
-      this.pictureSource.textContent = source || "";
+      this.setPictureInfo(source, false);
     }
 
     hidePictureCard(){
@@ -1123,12 +1169,13 @@ window.GiocoTastiera = window.GiocoTastiera || {};
       this.picturePlaceholder.textContent = t("ui.pictureDisabled");
       this.pictureImage.hidden = true;
       this.pictureImage.removeAttribute("src");
+      this.pictureImage.alt = "";
       this.pictureImage.style.transform = "scale(1)";
-      this.pictureSource.textContent = "";
+      this.setPictureInfo("", false);
     }
 
     async renderPicture(entry, settings, imageService, requestId, getRequestId){
-      this.pictureTitle.textContent = t("ui.pictureCategoryTitle", { category: entry.categoryLabel || getCategoryLabel(entry.category) });
+      this.pictureTitle.textContent = String(entry.categoryLabel || getCategoryLabel(entry.category) || "").toUpperCase();
       if(!settings.showPicture){
         this.hidePictureCard();
         return "disabled";
@@ -1153,13 +1200,13 @@ window.GiocoTastiera = window.GiocoTastiera || {};
             this.setPictureLoading(false);
             this.picturePlaceholder.hidden = true;
             this.pictureImage.hidden = false;
-            this.pictureImage.alt = t("ui.pictureAlt", { word: entry.word });
+            this.pictureImage.alt = "";
             this.pictureImage.src = image.src;
             const zoomPercent = Number.isFinite(Number(image.zoomPercent))
               ? Number(image.zoomPercent)
               : DEFAULT_PICTURE_ZOOM_PERCENT;
             this.pictureImage.style.transform = `scale(${zoomPercent / 100})`;
-            this.pictureSource.textContent = image.source;
+            this.setPictureInfo(image.source, Boolean(image.source));
             return "shown";
           }catch{
           }
@@ -1207,6 +1254,10 @@ window.GiocoTastiera = window.GiocoTastiera || {};
         input.checked = input.value === (settings.themeStyle === "bold" ? "bold" : "soft");
       }
       this.letterSizeRange.value = this.letterSizeToSlider(settings.letterSizePercent);
+      if(this.picturePanelSizeRange){
+        this.picturePanelSizeRange.value = this.picturePanelSizeToSlider(settings.picturePanelSizePercent);
+        this.updatePercentLabel(this.picturePanelSizeRange, this.picturePanelSizeValue);
+      }
       this.speechVolumeRange.value = this.volumeToSlider(settings.speechVolume);
       this.celebrationMusicVolumeRange.value = this.volumeToSlider(settings.celebrationMusicVolume);
       this.celebrationDelayRange.value = this.delayToSlider(settings.celebrationStartDelayMs);
@@ -1243,6 +1294,7 @@ window.GiocoTastiera = window.GiocoTastiera || {};
       const selectedThemeStyle = this.themeStyleInputs.find(input => input.checked);
       next.themeStyle = selectedThemeStyle && selectedThemeStyle.value === "bold" ? "bold" : "soft";
       next.letterSizePercent = this.sliderToLetterSize(this.letterSizeRange, next.letterSizePercent);
+      next.picturePanelSizePercent = this.sliderToPicturePanelSize(this.picturePanelSizeRange, next.picturePanelSizePercent);
       next.speechVolume = this.sliderToVolume(this.speechVolumeRange, next.speechVolume);
       next.celebrationMusicVolume = this.sliderToVolume(this.celebrationMusicVolumeRange, next.celebrationMusicVolume);
       next.celebrationStartDelayMs = this.sliderToDelay(this.celebrationDelayRange, next.celebrationStartDelayMs);

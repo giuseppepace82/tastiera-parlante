@@ -13,6 +13,10 @@ window.GiocoTastiera = window.GiocoTastiera || {};
     DEFAULT_LIBRARY,
     COLOR_THEMES,
     LETTER_SIZE_STEP_PERCENT,
+    DEFAULT_PICTURE_PANEL_SIZE_PERCENT,
+    MIN_PICTURE_PANEL_SIZE_PERCENT,
+    MAX_PICTURE_PANEL_SIZE_PERCENT,
+    PICTURE_PANEL_SIZE_STEP_PERCENT,
     MAX_CELEBRATION_DELAY_MS,
     MAX_LETTER_SIZE_PERCENT,
     MAX_PICTURE_ZOOM_PERCENT,
@@ -144,6 +148,13 @@ window.GiocoTastiera = window.GiocoTastiera || {};
     return Math.round(clamped / PICTURE_ZOOM_STEP_PERCENT) * PICTURE_ZOOM_STEP_PERCENT;
   }
 
+  function normalizePicturePanelSizePercent(value){
+    const parsed = Number(value);
+    if(!Number.isFinite(parsed)) return DEFAULT_PICTURE_PANEL_SIZE_PERCENT;
+    const clamped = Math.min(Math.max(parsed, MIN_PICTURE_PANEL_SIZE_PERCENT), MAX_PICTURE_PANEL_SIZE_PERCENT);
+    return Math.round(clamped / PICTURE_PANEL_SIZE_STEP_PERCENT) * PICTURE_PANEL_SIZE_STEP_PERCENT;
+  }
+
   function buildWordLayout(word){
     const displayWord = String(word || "").toUpperCase();
     const normalizedDisplayWord = stripAccents(displayWord);
@@ -222,6 +233,7 @@ window.GiocoTastiera = window.GiocoTastiera || {};
       themeStyle: "soft",
       showThemeDecorations: true,
       letterSizePercent: DEFAULT_LETTER_SIZE_PERCENT,
+      picturePanelSizePercent: DEFAULT_PICTURE_PANEL_SIZE_PERCENT,
       speechVolume: BASE_VOLUME_PERCENT,
       celebrationMusicVolume: BASE_VOLUME_PERCENT,
       celebrationStartDelayMs: ns.config.MUSIC_START_DELAY_MS,
@@ -250,6 +262,7 @@ window.GiocoTastiera = window.GiocoTastiera || {};
       }
       next.showThemeDecorations = raw.showThemeDecorations !== false;
       next.letterSizePercent = normalizeLetterSizePercent(raw.letterSizePercent);
+      next.picturePanelSizePercent = normalizePicturePanelSizePercent(raw.picturePanelSizePercent);
       next.speechVolume = normalizeStoredVolume(raw.speechVolume, BASE_VOLUME_PERCENT);
       next.celebrationMusicVolume = normalizeStoredVolume(raw.celebrationMusicVolume, BASE_VOLUME_PERCENT);
       next.celebrationStartDelayMs = normalizeCelebrationDelay(raw.celebrationStartDelayMs);

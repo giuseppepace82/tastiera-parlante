@@ -70,6 +70,7 @@ window.GiocoTastiera = window.GiocoTastiera || {};
       this.view.applyThemeOptions(this.model.settings);
       this.view.applyLetterSize(this.model.settings);
       this.view.applyPictureLayout(this.model.settings);
+      this.view.applyPicturePanelSize(this.model.settings);
       this.view.showSettingsTransferStatus("");
       this.newWord();
       if(this.shouldShowAudioStartPrompt()){
@@ -85,6 +86,7 @@ window.GiocoTastiera = window.GiocoTastiera || {};
       this.view.applyThemeOptions(this.model.settings);
       this.view.applyLetterSize(this.model.settings);
       this.view.applyPictureLayout(this.model.settings);
+      this.view.applyPicturePanelSize(this.model.settings);
       if(options.refreshWord !== false){
         this.newWord();
       }
@@ -216,6 +218,7 @@ window.GiocoTastiera = window.GiocoTastiera || {};
         this.view.applyThemeOptions(this.model.settings);
         this.view.applyLetterSize(this.model.settings);
         this.view.applyPictureLayout(this.model.settings);
+        this.view.applyPicturePanelSize(this.model.settings);
         this.view.fillSettingsEditor(this.model.settings);
         this.view.showSettingsTransferStatus("");
       });
