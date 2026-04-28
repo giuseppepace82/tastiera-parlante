@@ -139,7 +139,15 @@ The project uses classic browser scripts and is organized with a simple MVC-styl
 
 No build step is required.
 
-Open `index.html` in a browser.
+On Chrome, start a small local server from the project folder:
+
+```bash
+python3 -m http.server 8000
+```
+
+Then open `http://localhost:8000`.
+
+Opening `index.html` directly can work in Safari, but Chrome may block or silence parts of the audio when the page runs from `file://`.
 
 For speech synthesis and live image loading, a modern browser is recommended.
 

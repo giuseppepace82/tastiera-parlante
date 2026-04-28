@@ -30,6 +30,8 @@ window.GiocoTastiera = window.GiocoTastiera || {};
       this.wordDiv = document.getElementById("word");
       this.typedDiv = document.getElementById("typed");
       this.audio = document.getElementById("music");
+      this.audioStartOverlay = document.getElementById("audioStartOverlay");
+      this.audioStartButton = document.getElementById("audioStartButton");
       this.layout = document.querySelector(".layout");
       this.pictureCard = document.getElementById("pictureCard");
       this.pictureTitle = document.getElementById("pictureTitle");
@@ -1083,6 +1085,11 @@ window.GiocoTastiera = window.GiocoTastiera || {};
       this.updateExpectedLetterHighlight(0, settings && settings.highlightExpectedLetter !== false);
     }
 
+    clearWordAndTypedBar(){
+      this.wordDiv.innerHTML = "";
+      this.typedDiv.innerHTML = "";
+    }
+
     setPictureLoading(isLoading){
       this.pictureCard.classList.toggle("loading", isLoading);
       this.pictureFrame.classList.toggle("loading", isLoading);
@@ -1115,24 +1122,24 @@ window.GiocoTastiera = window.GiocoTastiera || {};
       this.pictureTitle.textContent = t("ui.pictureCategoryTitle", { category: entry.categoryLabel || getCategoryLabel(entry.category) });
       if(!settings.showPicture){
         this.hidePictureCard();
-        return;
+        return "disabled";
       }
 
       this.showPicturePlaceholder("", t("ui.pictureSearching"), true);
 
       try{
         const candidates = await imageService.resolveImageCandidates(entry, settings);
-        if(requestId !== getRequestId()) return;
+        if(requestId !== getRequestId()) return "stale";
 
         if(!candidates.length){
           this.showPicturePlaceholder(t("ui.pictureNotFound"), t("ui.noImageAvailable"));
-          return;
+          return "placeholder";
         }
 
         for(const image of candidates){
           try{
             await imageService.preloadImage(image.src);
-            if(requestId !== getRequestId()) return;
+            if(requestId !== getRequestId()) return "stale";
             this.pictureCard.classList.remove("picture-hidden");
             this.setPictureLoading(false);
             this.picturePlaceholder.hidden = true;
@@ -1144,15 +1151,17 @@ window.GiocoTastiera = window.GiocoTastiera || {};
               : DEFAULT_PICTURE_ZOOM_PERCENT;
             this.pictureImage.style.transform = `scale(${zoomPercent / 100})`;
             this.pictureSource.textContent = image.source;
-            return;
+            return "shown";
           }catch{
           }
         }
 
         this.showPicturePlaceholder(t("ui.pictureNotFound"), t("ui.noFallbackAvailable"));
+        return "placeholder";
       }catch{
-        if(requestId !== getRequestId()) return;
+        if(requestId !== getRequestId()) return "stale";
         this.showPicturePlaceholder(t("ui.pictureUnavailable"), t("ui.connectionError"));
+        return "placeholder";
       }
     }
 
@@ -1272,6 +1281,19 @@ window.GiocoTastiera = window.GiocoTastiera || {};
     closeOverlay(overlay){
       overlay.classList.remove("open");
       overlay.setAttribute("aria-hidden", "true");
+    }
+
+    showAudioStartPrompt(){
+      if(!this.audioStartOverlay) return;
+      this.openOverlay(this.audioStartOverlay);
+      if(this.audioStartButton){
+        this.audioStartButton.focus();
+      }
+    }
+
+    hideAudioStartPrompt(){
+      if(!this.audioStartOverlay) return;
+      this.closeOverlay(this.audioStartOverlay);
     }
 
     isSetupOpen(){

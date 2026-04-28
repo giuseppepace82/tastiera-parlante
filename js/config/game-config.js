@@ -21,6 +21,7 @@ window.GiocoTastiera = window.GiocoTastiera || {};
       ui: {
         title: "Tastiera parlante",
         subtitle: "Lettere, suoni e parole da completare",
+        audioStartAriaLabel: "Avvia audio",
         setupButtonAriaLabel: "Apri setup",
         wordAriaLabel: "Parola da leggere",
         boxesAriaLabel: "Caselle della parola",

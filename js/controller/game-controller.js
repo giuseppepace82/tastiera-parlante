@@ -27,21 +27,39 @@ window.GiocoTastiera = window.GiocoTastiera || {};
       this.wordAnnouncementTimer = 0;
       this.audioContext = null;
       this.musicGainNode = null;
+      this.audioUnlocked = false;
+      this.celebrationRunId = 0;
+      this.activeMusicRunId = 0;
+      this.wordReadyForInput = false;
 
-      this.setupMusicGain();
-
-      document.addEventListener("click", this.resumeAudioContextOnce, { once: true });
-      document.addEventListener("keydown", this.resumeAudioContextOnce, { once: true });
+      document.addEventListener("click", this.unlockAudioFromPointerOnce, { once: true });
+      document.addEventListener("keydown", this.unlockAudioFromKeyboardOnce, { once: true });
     }
 
-    enableSpeech = () => {
+    enableSpeech(){
       this.model.speechEnabled = true;
       this.speechService.enable();
+    }
+
+    unlockAudio = (options = {}) => {
+      const wasUnlocked = this.audioUnlocked;
+      this.audioUnlocked = true;
+      this.enableSpeech();
+      this.view.hideAudioStartPrompt();
+      document.removeEventListener("click", this.unlockAudioFromPointerOnce);
+      document.removeEventListener("keydown", this.unlockAudioFromKeyboardOnce);
       this.resumeAudioContext();
+      if(options.announceCurrentWord && !wasUnlocked && this.model.currentEntry && this.wordReadyForInput){
+        this.scheduleWordAnnouncement(this.model.currentEntry.word, 0);
+      }
     };
 
-    resumeAudioContextOnce = () => {
-      this.enableSpeech();
+    unlockAudioFromPointerOnce = () => {
+      this.unlockAudio({ announceCurrentWord: true });
+    };
+
+    unlockAudioFromKeyboardOnce = () => {
+      this.unlockAudio({ announceCurrentWord: false });
     };
 
     init(){
@@ -53,6 +71,9 @@ window.GiocoTastiera = window.GiocoTastiera || {};
       this.view.applyPictureLayout(this.model.settings);
       this.view.showSettingsTransferStatus("");
       this.newWord();
+      if(this.shouldShowAudioStartPrompt()){
+        this.view.showAudioStartPrompt();
+      }
     }
 
     applySettings(nextSettings, options = {}){
@@ -106,27 +127,18 @@ window.GiocoTastiera = window.GiocoTastiera || {};
     }
 
     setupMusicGain(){
-      const AudioContextClass = window.AudioContext || window.webkitAudioContext;
-      if(!AudioContextClass) return;
-
-      try{
-        this.audioContext = new AudioContextClass();
-        const sourceNode = this.audioContext.createMediaElementSource(this.view.audio);
-        this.musicGainNode = this.audioContext.createGain();
-        this.musicGainNode.gain.value = 0;
-        sourceNode.connect(this.musicGainNode);
-        this.musicGainNode.connect(this.audioContext.destination);
-        this.view.audio.volume = 1;
-      }catch{
-        this.audioContext = null;
-        this.musicGainNode = null;
-      }
+      this.audioContext = null;
+      this.musicGainNode = null;
     }
 
     resumeAudioContext(){
-      if(this.audioContext && this.audioContext.state === "suspended"){
-        this.audioContext.resume().catch(() => {});
-      }
+      this.setupMusicGain();
+    }
+
+    shouldShowAudioStartPrompt(){
+      const userAgent = navigator.userAgent || "";
+      const isChrome = /\bChrome\//.test(userAgent) && !/\bEdg\//.test(userAgent) && !/\bOPR\//.test(userAgent);
+      return isChrome && !(navigator.userActivation && navigator.userActivation.hasBeenActive);
     }
 
     getSpeechOutputVolume(){
@@ -156,6 +168,14 @@ window.GiocoTastiera = window.GiocoTastiera || {};
     }
 
     bindEvents(){
+      if(this.view.audioStartButton){
+        this.view.audioStartButton.addEventListener("click", event => {
+          event.preventDefault();
+          event.stopPropagation();
+          this.unlockAudio({ announceCurrentWord: true });
+        });
+      }
+
       this.view.setupButton.addEventListener("click", () => {
         const challenge = this.model.prepareChallenge();
         this.view.showChallenge(challenge);
@@ -230,6 +250,10 @@ window.GiocoTastiera = window.GiocoTastiera || {};
     };
 
     onKeyDown = (event) => {
+      if(!this.audioUnlocked){
+        this.unlockAudio();
+      }
+
       if(
         this.celebrationActive &&
         this.model.settings.allowCelebrationSkip &&
@@ -241,6 +265,7 @@ window.GiocoTastiera = window.GiocoTastiera || {};
       }
 
       if(this.view.isSetupOpen()) return;
+      if(!this.wordReadyForInput) return;
       if(!this.model.currentEntry || this.model.currentIndex >= this.model.normalizedWord.length) return;
 
       const pressed = event.key;
@@ -332,13 +357,25 @@ window.GiocoTastiera = window.GiocoTastiera || {};
 
         audio.addEventListener("loadedmetadata", onReady, { once: true });
         audio.addEventListener("canplay", onReady, { once: true });
+        audio.addEventListener("error", onReady, { once: true });
         audio.load();
       });
     }
 
-    async playMusic(){
+    stopMusic(runId = null){
+      if(runId !== null && this.activeMusicRunId !== runId) return;
       const audio = this.view.audio;
+      this.clearAudioFade();
+      audio.pause();
+      this.setMusicLevel(0);
+      this.activeMusicRunId = 0;
+    }
+
+    async playMusic(runId){
+      const audio = this.view.audio;
+      if(runId !== this.celebrationRunId) return;
       await this.waitForAudioReady(audio);
+      if(runId !== this.celebrationRunId) return;
 
       const hasDuration = Number.isFinite(audio.duration) && audio.duration > 0;
       const clipSeconds = hasDuration ? Math.min(CELEBRATION_MS / 1000, audio.duration) : 0;
@@ -353,18 +390,31 @@ window.GiocoTastiera = window.GiocoTastiera || {};
         audio.currentTime = 0;
       }
       this.setMusicLevel(0);
+      this.activeMusicRunId = runId;
       try{
         await audio.play();
       }catch{
+        if(this.activeMusicRunId === runId){
+          this.activeMusicRunId = 0;
+        }
+        return;
+      }
+      if(runId !== this.celebrationRunId){
+        this.stopMusic(runId);
         return;
       }
       this.fadeVolume(0, this.getMusicOutputVolume(), FADE_IN_MS);
 
       const fadeOutDelay = Math.max(CELEBRATION_MS - FADE_OUT_MS, 0);
       const fadeOutTimer = setTimeout(() => {
+        if(runId !== this.celebrationRunId) return;
         const currentLevel = this.musicGainNode ? this.musicGainNode.gain.value : audio.volume;
         this.fadeVolume(currentLevel, 0, FADE_OUT_MS, () => {
+          if(runId !== this.celebrationRunId) return;
           audio.pause();
+          if(this.activeMusicRunId === runId){
+            this.activeMusicRunId = 0;
+          }
         });
       }, fadeOutDelay);
       this.celebrationTimers.push(fadeOutTimer);
@@ -373,13 +423,16 @@ window.GiocoTastiera = window.GiocoTastiera || {};
     celebrate(){
       this.clearCelebrationTimers();
       this.celebrationActive = true;
+      const runId = ++this.celebrationRunId;
       const celebrationDelay = this.getCelebrationStartDelay();
       const musicTimer = setTimeout(() => {
-        this.playMusic();
+        if(runId !== this.celebrationRunId) return;
+        this.playMusic(runId);
         this.view.startCelebrationFx();
       }, celebrationDelay);
 
       const nextWordTimer = setTimeout(() => {
+        if(runId !== this.celebrationRunId) return;
         this.finishCelebration();
       }, celebrationDelay + CELEBRATION_MS);
 
@@ -393,24 +446,42 @@ window.GiocoTastiera = window.GiocoTastiera || {};
 
     finishCelebration(){
       this.celebrationActive = false;
+      this.celebrationRunId++;
       this.newWord();
     }
 
     async renderPicture(entry){
       const requestId = ++this.currentImageRequest;
-      await this.view.renderPicture(entry, this.model.settings, this.imageService, requestId, () => this.currentImageRequest);
+      return this.view.renderPicture(entry, this.model.settings, this.imageService, requestId, () => this.currentImageRequest);
     }
 
-    newWord(){
+    waitForVisualUpdate(){
+      return new Promise(resolve => {
+        requestAnimationFrame(() => {
+          requestAnimationFrame(() => resolve());
+        });
+      });
+    }
+
+    async newWord(){
+      this.celebrationRunId++;
       this.celebrationActive = false;
+      this.wordReadyForInput = false;
       this.clearCelebrationTimers();
       this.clearAudioFade();
       this.clearWordAnnouncement();
       this.view.stopCelebrationFx();
-      this.view.audio.pause();
-      this.setMusicLevel(0);
+      this.stopMusic();
+      this.view.clearWordAndTypedBar();
 
       const entry = this.model.pickNextWord();
+      const imageResult = await this.renderPicture(entry);
+      if(imageResult === "stale" || this.model.currentEntry !== entry) return;
+      if(imageResult !== "disabled"){
+        await this.waitForVisualUpdate();
+        if(imageResult === "stale" || this.model.currentEntry !== entry) return;
+      }
+
       this.view.renderWord(entry, this.model.wordLayout, this.model.settings);
       this.view.renderTypedBar(
         this.model.wordLayout,
@@ -418,7 +489,7 @@ window.GiocoTastiera = window.GiocoTastiera || {};
         this.model.currentIndex,
         this.model.settings
       );
-      this.renderPicture(entry);
+      this.wordReadyForInput = true;
       this.scheduleWordAnnouncement(entry.word);
     }
   }

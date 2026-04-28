@@ -135,7 +135,15 @@ Il progetto usa script browser classici ed è organizzato con una separazione se
 
 Non è richiesto alcun build step.
 
-Apri `index.html` in un browser.
+Su Chrome è consigliato avviare un piccolo server locale dalla cartella del progetto:
+
+```bash
+python3 -m http.server 8000
+```
+
+Poi apri `http://localhost:8000`.
+
+Aprire direttamente `index.html` può funzionare su Safari, ma su Chrome l’origine `file://` può bloccare o silenziare alcune parti audio.
 
 Per sintesi vocale e caricamento immagini realtime è consigliato un browser moderno.
 
