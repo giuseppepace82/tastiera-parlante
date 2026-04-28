@@ -70,7 +70,9 @@ window.GiocoTastiera = window.GiocoTastiera || {};
       this.enableCelebrationToggle = document.getElementById("enableCelebrationToggle");
       this.allowCelebrationSkipToggle = document.getElementById("allowCelebrationSkipToggle");
       this.highlightExpectedLetterToggle = document.getElementById("highlightExpectedLetterToggle");
+      this.showThemeDecorationsToggle = document.getElementById("showThemeDecorationsToggle");
       this.colorThemeInputs = Array.from(document.querySelectorAll('input[name="colorTheme"]'));
+      this.themeStyleInputs = Array.from(document.querySelectorAll('input[name="themeStyle"]'));
       this.letterSizeRange = document.getElementById("letterSizeRange");
       this.letterSizeValue = document.getElementById("letterSizeValue");
       this.speechVolumeRange = document.getElementById("speechVolumeRange");
@@ -1002,6 +1004,13 @@ window.GiocoTastiera = window.GiocoTastiera || {};
       }
     }
 
+    applyThemeOptions(settings){
+      const themeStyle = settings && settings.themeStyle === "bold" ? "bold" : "soft";
+      const decorationsEnabled = !settings || settings.showThemeDecorations !== false;
+      document.documentElement.dataset.themeStyle = themeStyle;
+      document.documentElement.dataset.themeDecorations = decorationsEnabled ? "on" : "off";
+    }
+
     renderTypedBar(wordLayout, insertedLetters, currentIndex, settings){
       this.typedDiv.innerHTML = "";
 
@@ -1188,8 +1197,14 @@ window.GiocoTastiera = window.GiocoTastiera || {};
       this.enableCelebrationToggle.checked = settings.enableCelebration !== false;
       this.allowCelebrationSkipToggle.checked = settings.allowCelebrationSkip !== false;
       this.highlightExpectedLetterToggle.checked = settings.highlightExpectedLetter !== false;
+      if(this.showThemeDecorationsToggle){
+        this.showThemeDecorationsToggle.checked = settings.showThemeDecorations !== false;
+      }
       for(const input of this.colorThemeInputs){
         input.checked = input.value === (settings.colorTheme || DEFAULT_COLOR_THEME);
+      }
+      for(const input of this.themeStyleInputs){
+        input.checked = input.value === (settings.themeStyle === "bold" ? "bold" : "soft");
       }
       this.letterSizeRange.value = this.letterSizeToSlider(settings.letterSizePercent);
       this.speechVolumeRange.value = this.volumeToSlider(settings.speechVolume);
@@ -1220,10 +1235,13 @@ window.GiocoTastiera = window.GiocoTastiera || {};
       next.enableCelebration = this.enableCelebrationToggle.checked;
       next.allowCelebrationSkip = this.allowCelebrationSkipToggle.checked;
       next.highlightExpectedLetter = this.highlightExpectedLetterToggle.checked;
+      next.showThemeDecorations = !(this.showThemeDecorationsToggle && !this.showThemeDecorationsToggle.checked);
       const selectedColorTheme = this.colorThemeInputs.find(input => input.checked);
       next.colorTheme = selectedColorTheme && COLOR_THEMES[selectedColorTheme.value]
         ? selectedColorTheme.value
         : DEFAULT_COLOR_THEME;
+      const selectedThemeStyle = this.themeStyleInputs.find(input => input.checked);
+      next.themeStyle = selectedThemeStyle && selectedThemeStyle.value === "bold" ? "bold" : "soft";
       next.letterSizePercent = this.sliderToLetterSize(this.letterSizeRange, next.letterSizePercent);
       next.speechVolume = this.sliderToVolume(this.speechVolumeRange, next.speechVolume);
       next.celebrationMusicVolume = this.sliderToVolume(this.celebrationMusicVolumeRange, next.celebrationMusicVolume);

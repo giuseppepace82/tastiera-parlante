@@ -219,6 +219,8 @@ window.GiocoTastiera = window.GiocoTastiera || {};
       allowCelebrationSkip: true,
       highlightExpectedLetter: true,
       colorTheme: DEFAULT_COLOR_THEME,
+      themeStyle: "soft",
+      showThemeDecorations: true,
       letterSizePercent: DEFAULT_LETTER_SIZE_PERCENT,
       speechVolume: BASE_VOLUME_PERCENT,
       celebrationMusicVolume: BASE_VOLUME_PERCENT,
@@ -243,6 +245,10 @@ window.GiocoTastiera = window.GiocoTastiera || {};
       if(typeof raw.colorTheme === "string" && COLOR_THEMES[raw.colorTheme]){
         next.colorTheme = raw.colorTheme;
       }
+      if(raw.themeStyle === "soft" || raw.themeStyle === "bold"){
+        next.themeStyle = raw.themeStyle;
+      }
+      next.showThemeDecorations = raw.showThemeDecorations !== false;
       next.letterSizePercent = normalizeLetterSizePercent(raw.letterSizePercent);
       next.speechVolume = normalizeStoredVolume(raw.speechVolume, BASE_VOLUME_PERCENT);
       next.celebrationMusicVolume = normalizeStoredVolume(raw.celebrationMusicVolume, BASE_VOLUME_PERCENT);

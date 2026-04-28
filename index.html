@@ -60,6 +60,13 @@
   --surface-bg:#fffdf6;
   --input-bg:#fff;
   --danger-ink:#a1413d;
+  --hero-start:rgba(255,255,255,0.9);
+  --hero-end:rgba(255,244,191,0.96);
+  --hero-border:rgba(255,212,71,0.56);
+  --hero-shadow:0 20px 46px rgba(121,87,19,0.14);
+  --decor-a:rgba(255,210,64,0.28);
+  --decor-b:rgba(255,145,77,0.18);
+  --decor-c:rgba(255,255,255,0.55);
   --letter-scale:1;
   --tile-base:74px;
   --typed-tile-base:62px;
@@ -67,9 +74,15 @@
   --typed-font-base:1.9rem;
   --tile-radius-base:18px;
   --typed-radius-base:18px;
+  --panel-shadow-strength:0 18px 45px rgba(113,84,17,0.12);
+  --letter-shadow-strength:0 10px 24px rgba(0,0,0,0.12);
+  --expected-lift:-4px;
+  --expected-scale:1.04;
+  --decor-opacity:1;
 }
 *{ box-sizing:border-box; }
 body{
+  position:relative;
   margin:0;
   min-height:100vh;
   background:
@@ -77,27 +90,86 @@ body{
     radial-gradient(circle at bottom right, var(--body-glow-bottom), transparent 28%),
     linear-gradient(180deg, var(--body-gradient-start) 0%, var(--body-gradient-end) 100%);
   color:var(--ink);
-  font-family:"Trebuchet MS", "Comic Sans MS", sans-serif;
+  font-family:"Avenir Next Rounded", "Trebuchet MS", "Comic Sans MS", sans-serif;
   text-align:center;
+  overflow-x:hidden;
+}
+body::before,
+body::after{
+  content:"";
+  position:fixed;
+  inset:0;
+  pointer-events:none;
+  z-index:0;
+  opacity:var(--decor-opacity);
+}
+body::before{
+  background:
+    radial-gradient(circle at 10% 16%, var(--decor-c) 0 56px, transparent 57px),
+    radial-gradient(circle at 88% 13%, var(--decor-a) 0 70px, transparent 71px),
+    radial-gradient(circle at 78% 78%, var(--decor-b) 0 88px, transparent 89px),
+    radial-gradient(circle at 16% 82%, var(--decor-a) 0 64px, transparent 65px);
+}
+body::after{
+  background:
+    radial-gradient(circle at 22% 28%, rgba(255,255,255,0.6) 0 20px, transparent 21px),
+    radial-gradient(circle at 70% 32%, rgba(255,255,255,0.36) 0 14px, transparent 15px),
+    radial-gradient(circle at 52% 12%, rgba(255,255,255,0.42) 0 12px, transparent 13px),
+    radial-gradient(circle at 84% 60%, rgba(255,255,255,0.28) 0 18px, transparent 19px);
 }
 button, input, textarea{
   font:inherit;
 }
 .screen{
   position:relative;
+  z-index:1;
   width:min(1120px, calc(100% - 28px));
   margin:0 auto;
   padding:22px 0 40px;
 }
 .topbar{
   display:flex;
-  align-items:center;
+  align-items:flex-start;
   justify-content:space-between;
   gap:16px;
-  margin-bottom:14px;
+  margin-bottom:20px;
 }
 .title-wrap{
   text-align:left;
+  flex:1;
+}
+.brand-hero{
+  position:relative;
+  display:flex;
+  flex-direction:column;
+  gap:12px;
+  padding:18px 20px 16px;
+  border:3px solid var(--hero-border);
+  border-radius:30px;
+  background:linear-gradient(180deg, var(--hero-start) 0%, var(--hero-end) 100%);
+  box-shadow:var(--hero-shadow);
+  overflow:hidden;
+}
+.brand-hero::after{
+  content:"";
+  position:absolute;
+  right:-26px;
+  top:-20px;
+  width:132px;
+  height:132px;
+  border-radius:50%;
+  background:radial-gradient(circle, rgba(255,255,255,0.56) 0%, transparent 72%);
+}
+.brand-logo-shell{
+  display:inline-flex;
+  align-items:center;
+  justify-content:flex-start;
+  max-width:min(100%, 430px);
+}
+.brand-logo{
+  display:block;
+  width:min(100%, 430px);
+  height:auto;
 }
 h1{
   margin:0;
@@ -106,7 +178,8 @@ h1{
 }
 .subtitle{
   margin:6px 0 0;
-  font-size:0.95rem;
+  max-width:560px;
+  font-size:0.98rem;
   letter-spacing:0.1em;
   color:var(--subtitle-ink);
 }
@@ -128,7 +201,7 @@ h1{
   border:none;
   border-radius:50%;
   background:linear-gradient(180deg, var(--setup-button-start) 0%, var(--setup-button-end) 100%);
-  box-shadow:var(--shadow);
+  box-shadow:var(--panel-shadow-strength);
   cursor:pointer;
   font-size:1.6rem;
 }
@@ -156,7 +229,7 @@ h1{
   background:var(--panel-bg);
   border:3px solid var(--panel-border);
   border-radius:28px;
-  box-shadow:var(--shadow);
+  box-shadow:var(--panel-shadow-strength);
   padding:24px;
   backdrop-filter:blur(6px);
 }
@@ -265,12 +338,12 @@ h1{
 }
 .letter{
   color:#fff;
-  box-shadow:0 10px 24px rgba(0,0,0,0.12);
+  box-shadow:var(--letter-shadow-strength);
 }
 .letter.expected{
   outline:5px solid var(--expected-ring);
   outline-offset:4px;
-  transform:translateY(-4px) scale(1.04);
+  transform:translateY(var(--expected-lift)) scale(var(--expected-scale));
   box-shadow:0 16px 28px var(--expected-shadow);
 }
 .typed-chip{
@@ -417,6 +490,81 @@ h1{
   flex-wrap:wrap;
   gap:18px;
   margin-top:14px;
+}
+.theme-picker,
+.theme-style-picker{
+  display:grid;
+  grid-template-columns:repeat(auto-fit, minmax(150px, 1fr));
+  gap:12px;
+  margin-top:14px;
+}
+.theme-choice{
+  position:relative;
+  display:flex;
+  min-height:94px;
+  border:2px solid var(--surface-border);
+  border-radius:20px;
+  background:linear-gradient(180deg, var(--surface-bg) 0%, var(--modal-bg) 100%);
+  overflow:hidden;
+}
+.theme-choice input{
+  position:absolute;
+  inset:0;
+  opacity:0;
+  cursor:pointer;
+}
+.theme-choice-body{
+  display:flex;
+  flex:1;
+  flex-direction:column;
+  justify-content:space-between;
+  gap:10px;
+  padding:12px;
+}
+.theme-choice-title{
+  font-size:0.88rem;
+  font-weight:900;
+  letter-spacing:0.08em;
+  text-transform:uppercase;
+  color:var(--title-ink);
+}
+.theme-choice-preview{
+  display:flex;
+  gap:8px;
+}
+.theme-choice-dot{
+  flex:1;
+  min-width:24px;
+  height:22px;
+  border-radius:999px;
+  border:2px solid rgba(255,255,255,0.65);
+}
+.theme-choice input:checked + .theme-choice-body{
+  box-shadow:inset 0 0 0 3px var(--typed-active-border);
+}
+.theme-choice[data-theme-preview="sun"] .theme-choice-dot:nth-child(1){ background:#ffd447; }
+.theme-choice[data-theme-preview="sun"] .theme-choice-dot:nth-child(2){ background:#ffb347; }
+.theme-choice[data-theme-preview="sun"] .theme-choice-dot:nth-child(3){ background:#fff5c4; }
+.theme-choice[data-theme-preview="ocean"] .theme-choice-dot:nth-child(1){ background:#4fb8ff; }
+.theme-choice[data-theme-preview="ocean"] .theme-choice-dot:nth-child(2){ background:#89dbff; }
+.theme-choice[data-theme-preview="ocean"] .theme-choice-dot:nth-child(3){ background:#dff6ff; }
+.theme-choice[data-theme-preview="meadow"] .theme-choice-dot:nth-child(1){ background:#86d06e; }
+.theme-choice[data-theme-preview="meadow"] .theme-choice-dot:nth-child(2){ background:#d3f06d; }
+.theme-choice[data-theme-preview="meadow"] .theme-choice-dot:nth-child(3){ background:#f0fad7; }
+.theme-choice[data-theme-preview="candy"] .theme-choice-dot:nth-child(1){ background:#ff9a72; }
+.theme-choice[data-theme-preview="candy"] .theme-choice-dot:nth-child(2){ background:#ffc571; }
+.theme-choice[data-theme-preview="candy"] .theme-choice-dot:nth-child(3){ background:#ffe6dd; }
+.theme-choice[data-theme-preview="sunset"] .theme-choice-dot:nth-child(1){ background:#ffae63; }
+.theme-choice[data-theme-preview="sunset"] .theme-choice-dot:nth-child(2){ background:#ffd469; }
+.theme-choice[data-theme-preview="sunset"] .theme-choice-dot:nth-child(3){ background:#fff0d8; }
+[data-theme-style="bold"]{
+  --panel-shadow-strength:0 22px 54px rgba(113,84,17,0.18);
+  --letter-shadow-strength:0 14px 28px rgba(0,0,0,0.16);
+  --expected-lift:-6px;
+  --expected-scale:1.08;
+}
+[data-theme-decorations="off"]{
+  --decor-opacity:0;
 }
 .slider-group{
   display:grid;
@@ -839,6 +987,16 @@ canvas{
     width:min(100% - 16px, 100%);
     padding-top:16px;
   }
+  .topbar{
+    flex-direction:column;
+    align-items:stretch;
+  }
+  .brand-hero{
+    padding:16px;
+  }
+  .brand-logo-shell{
+    max-width:100%;
+  }
   .panel,
   .modal{
     padding:18px;
@@ -854,8 +1012,11 @@ canvas{
 
 <div class="screen">
   <div class="topbar">
-    <div class="title-wrap">
-      <h1 data-i18n="ui.title">TASTIERA PARLANTE</h1>
+    <div class="title-wrap brand-hero">
+      <div class="brand-logo-shell">
+        <img class="brand-logo" src="assets/logo-tastiera-parlante.svg" alt="Tastiera Parlante">
+      </div>
+      <h1 class="sr-only" data-i18n="ui.title">TASTIERA PARLANTE</h1>
       <p class="subtitle" data-i18n="ui.subtitle">LETTERE, SUONI E PAROLE DA COMPLETARE</p>
     </div>
     <button id="setupButton" class="setup-button" type="button" data-i18n-aria-label="ui.setupButtonAriaLabel" aria-label="Apri setup">⚙</button>
@@ -947,18 +1108,92 @@ canvas{
             </label>
           </div>
           <div class="option-title" data-i18n="ui.colorThemeTitle">TEMA COLORI</div>
+          <div class="theme-picker">
+            <label class="theme-choice" data-theme-preview="sun">
+              <input id="colorThemeSun" type="radio" name="colorTheme" value="sun">
+              <span class="theme-choice-body">
+                <span class="theme-choice-title" data-i18n="ui.colorThemeSun">SOLE</span>
+                <span class="theme-choice-preview" aria-hidden="true">
+                  <span class="theme-choice-dot"></span>
+                  <span class="theme-choice-dot"></span>
+                  <span class="theme-choice-dot"></span>
+                </span>
+              </span>
+            </label>
+            <label class="theme-choice" data-theme-preview="ocean">
+              <input id="colorThemeOcean" type="radio" name="colorTheme" value="ocean">
+              <span class="theme-choice-body">
+                <span class="theme-choice-title" data-i18n="ui.colorThemeOcean">MARE</span>
+                <span class="theme-choice-preview" aria-hidden="true">
+                  <span class="theme-choice-dot"></span>
+                  <span class="theme-choice-dot"></span>
+                  <span class="theme-choice-dot"></span>
+                </span>
+              </span>
+            </label>
+            <label class="theme-choice" data-theme-preview="meadow">
+              <input id="colorThemeMeadow" type="radio" name="colorTheme" value="meadow">
+              <span class="theme-choice-body">
+                <span class="theme-choice-title" data-i18n="ui.colorThemeMeadow">PRATO</span>
+                <span class="theme-choice-preview" aria-hidden="true">
+                  <span class="theme-choice-dot"></span>
+                  <span class="theme-choice-dot"></span>
+                  <span class="theme-choice-dot"></span>
+                </span>
+              </span>
+            </label>
+            <label class="theme-choice" data-theme-preview="candy">
+              <input id="colorThemeCandy" type="radio" name="colorTheme" value="candy">
+              <span class="theme-choice-body">
+                <span class="theme-choice-title" data-i18n="ui.colorThemeCandy">CARAMELLA</span>
+                <span class="theme-choice-preview" aria-hidden="true">
+                  <span class="theme-choice-dot"></span>
+                  <span class="theme-choice-dot"></span>
+                  <span class="theme-choice-dot"></span>
+                </span>
+              </span>
+            </label>
+            <label class="theme-choice" data-theme-preview="sunset">
+              <input id="colorThemeSunset" type="radio" name="colorTheme" value="sunset">
+              <span class="theme-choice-body">
+                <span class="theme-choice-title" data-i18n="ui.colorThemeSunset">TRAMONTO</span>
+                <span class="theme-choice-preview" aria-hidden="true">
+                  <span class="theme-choice-dot"></span>
+                  <span class="theme-choice-dot"></span>
+                  <span class="theme-choice-dot"></span>
+                </span>
+              </span>
+            </label>
+          </div>
+          <div class="option-title" data-i18n="ui.themeStyleTitle">STILE TEMA</div>
+          <div class="theme-style-picker">
+            <label class="theme-choice">
+              <input id="themeStyleSoft" type="radio" name="themeStyle" value="soft">
+              <span class="theme-choice-body">
+                <span class="theme-choice-title" data-i18n="ui.themeStyleSoft">MORBIDO</span>
+                <span class="theme-choice-preview" aria-hidden="true">
+                  <span class="theme-choice-dot" style="background:#ffffff"></span>
+                  <span class="theme-choice-dot" style="background:#f5efd9"></span>
+                  <span class="theme-choice-dot" style="background:#e7dcc1"></span>
+                </span>
+              </span>
+            </label>
+            <label class="theme-choice">
+              <input id="themeStyleBold" type="radio" name="themeStyle" value="bold">
+              <span class="theme-choice-body">
+                <span class="theme-choice-title" data-i18n="ui.themeStyleBold">VIVACE</span>
+                <span class="theme-choice-preview" aria-hidden="true">
+                  <span class="theme-choice-dot" style="background:#ffd447"></span>
+                  <span class="theme-choice-dot" style="background:#32cd32"></span>
+                  <span class="theme-choice-dot" style="background:#ff00ff"></span>
+                </span>
+              </span>
+            </label>
+          </div>
           <div class="option-group">
             <label class="switch-row">
-              <input id="colorThemeSun" type="radio" name="colorTheme" value="sun">
-              <span data-i18n="ui.colorThemeSun">SOLE</span>
-            </label>
-            <label class="switch-row">
-              <input id="colorThemeOcean" type="radio" name="colorTheme" value="ocean">
-              <span data-i18n="ui.colorThemeOcean">MARE</span>
-            </label>
-            <label class="switch-row">
-              <input id="colorThemeMeadow" type="radio" name="colorTheme" value="meadow">
-              <span data-i18n="ui.colorThemeMeadow">PRATO</span>
+              <input id="showThemeDecorationsToggle" type="checkbox">
+              <span data-i18n="ui.showThemeDecorations">MOSTRA DECORAZIONI DEL TEMA</span>
             </label>
           </div>
         </div>
