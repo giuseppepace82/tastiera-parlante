@@ -381,7 +381,8 @@ window.GiocoTastiera = window.GiocoTastiera || {};
       }
 
       const preferredKey = wordImageKey(entry.category, entry.word);
-      const preferredImage = settings && settings.preferredWordImages ? settings.preferredWordImages[preferredKey] : null;
+      const preferredOverride = settings && settings.wordOverrides ? settings.wordOverrides[preferredKey] : null;
+      const preferredImage = preferredOverride && preferredOverride.image ? preferredOverride.image : null;
       const candidates = await this.fetchRealtimeImage(entry);
       if(!preferredImage || !preferredImage.src){
         return candidates;

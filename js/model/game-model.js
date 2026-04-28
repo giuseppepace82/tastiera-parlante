@@ -102,6 +102,94 @@ window.GiocoTastiera = window.GiocoTastiera || {};
     return next;
   }
 
+  function normalizeWordCelebrationOverride(rawCelebration){
+    if(!rawCelebration || typeof rawCelebration !== "object") return null;
+
+    const enabled = rawCelebration.enabled === true;
+    const audioSrc = typeof rawCelebration.audioSrc === "string" && rawCelebration.audioSrc.startsWith("data:audio/")
+      ? rawCelebration.audioSrc
+      : "";
+    const audioLabel = typeof rawCelebration.audioLabel === "string" ? rawCelebration.audioLabel : "";
+    const fxStickerSrc = typeof rawCelebration.fxStickerSrc === "string" && rawCelebration.fxStickerSrc.startsWith("data:image/")
+      ? rawCelebration.fxStickerSrc
+      : "";
+    const fxMode = rawCelebration.fxMode === "sticker" ? "sticker" : "default";
+
+    if(!enabled && !audioSrc && !fxStickerSrc){
+      return null;
+    }
+
+    return {
+      enabled,
+      audioSrc,
+      audioLabel,
+      fxStickerSrc,
+      fxMode
+    };
+  }
+
+  function normalizeWordOverrides(rawOverrides, availableEntries, legacyImages){
+    const next = {};
+    const allowedKeys = new Set(
+      availableEntries
+        .filter(entry => entry.category !== "famiglia")
+        .map(entry => wordImageKey(entry.category, entry.word))
+    );
+
+    const writeImageOverride = (key, value) => {
+      if(!allowedKeys.has(key)) return;
+      if(!value || typeof value !== "object") return;
+      if(typeof value.src !== "string" || !value.src) return;
+
+      const target = next[key] || {};
+      target.image = {
+        src: value.src,
+        source: typeof value.source === "string" ? value.source : "",
+        sourceKind: typeof value.sourceKind === "string" ? value.sourceKind : "preferred",
+        zoomPercent: normalizePictureZoomPercent(value.zoomPercent)
+      };
+      next[key] = target;
+    };
+
+    for(const [key, value] of Object.entries(legacyImages || {})){
+      writeImageOverride(key, value);
+    }
+
+    if(rawOverrides && typeof rawOverrides === "object"){
+      for(const [key, value] of Object.entries(rawOverrides)){
+        if(!allowedKeys.has(key) || !value || typeof value !== "object") continue;
+        const target = {};
+        if(value.image){
+          writeImageOverride(key, value.image);
+          if(next[key] && next[key].image){
+            target.image = next[key].image;
+          }
+        }else if(
+          typeof value.src === "string" &&
+          value.src
+        ){
+          writeImageOverride(key, value);
+          if(next[key] && next[key].image){
+            target.image = next[key].image;
+          }
+        }else if(next[key] && next[key].image){
+          target.image = next[key].image;
+        }
+
+        const celebration = normalizeWordCelebrationOverride(value.celebration);
+        if(celebration){
+          target.celebration = celebration;
+        }
+
+        if(target.image || target.celebration){
+          next[key] = target;
+        }
+      }
+    }
+
+    return next;
+  }
+
   function isVowel(char){
     return "AEIOU".includes(char);
   }
@@ -241,7 +329,7 @@ window.GiocoTastiera = window.GiocoTastiera || {};
       enabledCategories: deepClone(DEFAULT_ENABLED),
       categories: deepClone(DEFAULT_LIBRARY),
       customCategories: [],
-      preferredWordImages: {},
+      wordOverrides: {},
       familyPictures: {}
     };
   }
@@ -290,7 +378,7 @@ window.GiocoTastiera = window.GiocoTastiera || {};
           availableEntries.push({ category: category.id, word });
         }
       }
-      next.preferredWordImages = normalizePreferredWordImages(raw.preferredWordImages, availableEntries);
+      next.wordOverrides = normalizeWordOverrides(raw.wordOverrides, availableEntries, normalizePreferredWordImages(raw.preferredWordImages, availableEntries));
       next.familyPictures = normalizeFamilyPictures(raw.familyPictures, next.categories.famiglia);
     }
 
@@ -327,19 +415,22 @@ window.GiocoTastiera = window.GiocoTastiera || {};
     }
 
     saveSettings(){
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(this.settings));
+      try{
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(this.settings));
+        return true;
+      }catch{
+        return false;
+      }
     }
 
     resetSettings(){
       this.settings = createDefaultSettings();
-      this.saveSettings();
-      return this.settings;
+      return this.saveSettings();
     }
 
     updateSettings(nextSettings){
       this.settings = normalizeSettings(nextSettings);
-      this.saveSettings();
-      return this.settings;
+      return this.saveSettings();
     }
 
     buildWordPool(){
