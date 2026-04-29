@@ -162,6 +162,10 @@ window.GiocoTastiera = window.GiocoTastiera || {};
       return Number(this.model.settings.celebrationStartDelayMs) || 0;
     }
 
+    getCelebrationDuration(){
+      return Number(this.model.settings.celebrationDurationMs) || CELEBRATION_MS;
+    }
+
     setMusicLevel(level){
       const safeLevel = Math.max(Number(level) || 0, 0);
       if(this.musicGainNode){
@@ -394,35 +398,29 @@ window.GiocoTastiera = window.GiocoTastiera || {};
 
     async getEffectiveWordCelebrationConfig(){
       const override = this.getWordCelebrationOverride();
-      if(
-        !override ||
-        override.enabled !== true ||
-        !override.audioSrc ||
-        override.fxMode !== "sticker" ||
-        !override.fxStickerSrc
-      ){
+      if(!override || override.enabled !== true){
         return {
           audioSrc: this.defaultCelebrationAudioSrc,
           audioMode: "default",
+          audioVolume: this.getMusicOutputVolume(),
+          durationMs: this.getCelebrationDuration(),
           fx: { mode: "default" }
         };
       }
 
-      const fx = await this.view.prepareCelebrationFxConfig({
-        mode: "sticker",
-        stickerSrc: override.fxStickerSrc
-      });
-      if(fx.mode !== "sticker"){
-        return {
-          audioSrc: this.defaultCelebrationAudioSrc,
-          audioMode: "default",
-          fx: { mode: "default" }
-        };
+      let fx = { mode: "default" };
+      if(override.fxMode === "sticker" && override.fxStickerSrc){
+        fx = await this.view.prepareCelebrationFxConfig({
+          mode: "sticker",
+          stickerSrc: override.fxStickerSrc
+        });
       }
 
       return {
-        audioSrc: override.audioSrc,
-        audioMode: "custom",
+        audioSrc: override.audioSrc || this.defaultCelebrationAudioSrc,
+        audioMode: override.audioSrc ? "custom" : "default",
+        audioVolume: (override.audioSrc ? Math.min(Math.max((Number(override.audioVolume) || 0) / BASE_VOLUME_PERCENT, 0), 1) : this.getMusicOutputVolume()),
+        durationMs: Number(override.durationMs) || this.getCelebrationDuration(),
         fx
       };
     }
@@ -445,8 +443,11 @@ window.GiocoTastiera = window.GiocoTastiera || {};
       if(runId !== this.celebrationRunId) return;
 
       const isDefaultClip = !celebrationConfig || celebrationConfig.audioMode !== "custom";
+      const durationMs = celebrationConfig && Number(celebrationConfig.durationMs) > 0
+        ? Number(celebrationConfig.durationMs)
+        : this.getCelebrationDuration();
       const hasDuration = Number.isFinite(audio.duration) && audio.duration > 0;
-      const clipSeconds = hasDuration ? Math.min(CELEBRATION_MS / 1000, audio.duration) : 0;
+      const clipSeconds = hasDuration ? Math.min(durationMs / 1000, audio.duration) : 0;
       const maxStart = hasDuration ? Math.max(audio.duration - clipSeconds, 0) : 0;
       const start = isDefaultClip && hasDuration ? Math.random() * maxStart : 0;
 
@@ -471,9 +472,12 @@ window.GiocoTastiera = window.GiocoTastiera || {};
         this.stopMusic(runId);
         return;
       }
-      this.fadeVolume(0, this.getMusicOutputVolume(), FADE_IN_MS);
+      const targetVolume = celebrationConfig && typeof celebrationConfig.audioVolume === "number"
+        ? celebrationConfig.audioVolume
+        : this.getMusicOutputVolume();
+      this.fadeVolume(0, targetVolume, FADE_IN_MS);
 
-      const fadeOutDelay = Math.max(CELEBRATION_MS - FADE_OUT_MS, 0);
+      const fadeOutDelay = Math.max(durationMs - FADE_OUT_MS, 0);
       const fadeOutTimer = setTimeout(() => {
         if(runId !== this.celebrationRunId) return;
         const currentLevel = this.musicGainNode ? this.musicGainNode.gain.value : audio.volume;
@@ -499,11 +503,11 @@ window.GiocoTastiera = window.GiocoTastiera || {};
         if(runId !== this.celebrationRunId) return;
         await this.playMusic(runId, celebrationConfig);
         if(runId !== this.celebrationRunId) return;
-        this.view.startCelebrationFx(celebrationConfig.fx);
+        this.view.startCelebrationFx(celebrationConfig.fx, celebrationConfig.durationMs);
         const nextWordTimer = setTimeout(() => {
           if(runId !== this.celebrationRunId) return;
           this.finishCelebration();
-        }, CELEBRATION_MS);
+        }, celebrationConfig.durationMs);
         this.celebrationTimers.push(nextWordTimer);
       }, celebrationDelay);
       this.celebrationTimers.push(musicTimer);

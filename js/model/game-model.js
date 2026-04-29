@@ -4,6 +4,7 @@ window.GiocoTastiera = window.GiocoTastiera || {};
   const {
     BASE_VOLUME_PERCENT,
     CELEBRATION_DELAY_STEP_MS,
+    CELEBRATION_DURATION_STEP_MS,
     CATEGORY_ORDER,
     DEFAULT_LETTER_SIZE_PERCENT,
     DEFAULT_PICTURE_ZOOM_PERCENT,
@@ -18,12 +19,14 @@ window.GiocoTastiera = window.GiocoTastiera || {};
     MAX_PICTURE_PANEL_SIZE_PERCENT,
     PICTURE_PANEL_SIZE_STEP_PERCENT,
     MAX_CELEBRATION_DELAY_MS,
+    MAX_CELEBRATION_DURATION_MS,
     MAX_LETTER_SIZE_PERCENT,
     MAX_PICTURE_ZOOM_PERCENT,
     MAX_VOLUME_PERCENT,
     MIN_LETTER_SIZE_PERCENT,
     MIN_PICTURE_ZOOM_PERCENT,
     MIN_CELEBRATION_DELAY_MS,
+    MIN_CELEBRATION_DURATION_MS,
     PICTURE_ZOOM_STEP_PERCENT,
     STORAGE_KEY
   } = ns.config;
@@ -114,6 +117,8 @@ window.GiocoTastiera = window.GiocoTastiera || {};
       ? rawCelebration.fxStickerSrc
       : "";
     const fxMode = rawCelebration.fxMode === "sticker" ? "sticker" : "default";
+    const audioVolume = normalizeStoredVolume(rawCelebration.audioVolume, BASE_VOLUME_PERCENT);
+    const durationMs = normalizeCelebrationDuration(rawCelebration.durationMs);
 
     if(!enabled && !audioSrc && !fxStickerSrc){
       return null;
@@ -123,6 +128,8 @@ window.GiocoTastiera = window.GiocoTastiera || {};
       enabled,
       audioSrc,
       audioLabel,
+      audioVolume,
+      durationMs,
       fxStickerSrc,
       fxMode
     };
@@ -220,6 +227,13 @@ window.GiocoTastiera = window.GiocoTastiera || {};
     if(!Number.isFinite(parsed)) return ns.config.MUSIC_START_DELAY_MS;
     const clamped = Math.min(Math.max(parsed, MIN_CELEBRATION_DELAY_MS), MAX_CELEBRATION_DELAY_MS);
     return Math.round(clamped / CELEBRATION_DELAY_STEP_MS) * CELEBRATION_DELAY_STEP_MS;
+  }
+
+  function normalizeCelebrationDuration(value){
+    const parsed = Number(value);
+    if(!Number.isFinite(parsed)) return ns.config.CELEBRATION_MS;
+    const clamped = Math.min(Math.max(parsed, MIN_CELEBRATION_DURATION_MS), MAX_CELEBRATION_DURATION_MS);
+    return Math.round(clamped / CELEBRATION_DURATION_STEP_MS) * CELEBRATION_DURATION_STEP_MS;
   }
 
   function normalizeLetterSizePercent(value){
@@ -325,6 +339,7 @@ window.GiocoTastiera = window.GiocoTastiera || {};
       speechVolume: BASE_VOLUME_PERCENT,
       celebrationMusicVolume: BASE_VOLUME_PERCENT,
       celebrationStartDelayMs: ns.config.MUSIC_START_DELAY_MS,
+      celebrationDurationMs: ns.config.CELEBRATION_MS,
       picturePosition: "side",
       enabledCategories: deepClone(DEFAULT_ENABLED),
       categories: deepClone(DEFAULT_LIBRARY),
@@ -354,6 +369,7 @@ window.GiocoTastiera = window.GiocoTastiera || {};
       next.speechVolume = normalizeStoredVolume(raw.speechVolume, BASE_VOLUME_PERCENT);
       next.celebrationMusicVolume = normalizeStoredVolume(raw.celebrationMusicVolume, BASE_VOLUME_PERCENT);
       next.celebrationStartDelayMs = normalizeCelebrationDelay(raw.celebrationStartDelayMs);
+      next.celebrationDurationMs = normalizeCelebrationDuration(raw.celebrationDurationMs);
       if(raw.picturePosition === "bottom" || raw.picturePosition === "side"){
         next.picturePosition = raw.picturePosition;
       }
