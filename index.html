@@ -87,7 +87,11 @@
   --expected-scale:1.04;
   --decor-opacity:1;
   --picture-panel-scale:1.15;
-  --picture-side-width:calc(300px + ((var(--picture-panel-scale) - 1) * 420px));
+  --picture-side-base:360px;
+  --picture-bottom-base:860px;
+  --picture-side-width:calc(var(--picture-side-base) * var(--picture-panel-scale));
+  --picture-side-height:calc(320px * var(--picture-panel-scale));
+  --picture-bottom-height:calc(280px * var(--picture-panel-scale));
 }
 *{ box-sizing:border-box; }
 body{
@@ -241,11 +245,12 @@ h1{
 }
 .layout.picture-bottom .picture-card{
   width:100%;
-  max-width:calc(860px * var(--picture-panel-scale));
+  max-width:calc(var(--picture-bottom-base) * var(--picture-panel-scale));
   margin:0 auto;
 }
 .layout.picture-bottom .picture-frame{
-  min-height:calc(280px * var(--picture-panel-scale));
+  height:var(--picture-bottom-height);
+  min-height:0;
 }
 .panel{
   background:var(--panel-bg);
@@ -269,7 +274,8 @@ h1{
 }
 .picture-frame{
   flex:1;
-  min-height:calc(320px * var(--picture-panel-scale));
+  height:var(--picture-side-height);
+  min-height:0;
   border-radius:24px;
   border:3px dashed var(--frame-border);
   background:linear-gradient(180deg, var(--frame-start) 0%, var(--frame-end) 100%);
@@ -1149,6 +1155,11 @@ h1{
 body.touch-primary .mobile-only-setting{
   display:block;
 }
+@media (max-width: 900px){
+  .mobile-only-setting{
+    display:block;
+  }
+}
 .category-toolbar{
   display:flex;
   flex-wrap:wrap;
@@ -1350,7 +1361,7 @@ canvas{
     padding:18px;
   }
   .picture-frame{
-    min-height:240px;
+    height:max(180px, var(--picture-bottom-height));
   }
   .keyboard-grid,
   .keyboard-grid.consonants{
@@ -1383,6 +1394,50 @@ canvas{
     width:min(100%, 980px);
     max-height:calc(var(--overlay-viewport-height, 100dvh) - 16px);
     border-radius:24px;
+  }
+}
+@media (pointer:coarse) and (orientation:landscape){
+  .touch-primary .screen{
+    padding-top:8px;
+    padding-bottom:12px;
+  }
+  .touch-primary .topbar{
+    align-items:center;
+    gap:10px;
+    margin-bottom:8px;
+  }
+  .touch-primary .brand-hero{
+    min-height:0;
+    padding:6px 10px;
+    border-width:2px;
+    border-radius:18px;
+    gap:0;
+  }
+  .touch-primary .brand-hero::after{
+    display:none;
+  }
+  .touch-primary .brand-logo-shell{
+    width:min(220px, 42vw);
+    max-width:220px;
+  }
+  .touch-primary .subtitle{
+    display:none;
+  }
+  .touch-primary .setup-button{
+    width:44px;
+    height:44px;
+    font-size:1.35rem;
+  }
+  .touch-primary .layout{
+    gap:12px;
+    min-height:calc(100dvh - 72px);
+  }
+  .touch-primary .panel{
+    padding:14px;
+  }
+  .touch-primary .game-panel,
+  .touch-primary .game-main{
+    gap:12px;
   }
 }
 </style>
