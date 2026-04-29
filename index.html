@@ -238,7 +238,7 @@ h1{
   display:grid;
   grid-template-columns:minmax(0, 1fr) minmax(240px, var(--picture-side-width));
   gap:18px;
-  align-items:stretch;
+  align-items:start;
 }
 .layout.picture-bottom{
   grid-template-columns:1fr;
@@ -261,19 +261,20 @@ h1{
   backdrop-filter:blur(6px);
 }
 .picture-card{
-  min-height:100%;
   display:flex;
   flex-direction:column;
   gap:14px;
 }
 .layout:not(.picture-bottom) .picture-card{
   width:min(100%, var(--picture-side-width));
+  height:auto;
   padding:12px;
   gap:10px;
   justify-self:end;
+  align-self:start;
 }
 .picture-frame{
-  flex:1;
+  flex:0 0 auto;
   height:var(--picture-side-height);
   min-height:0;
   border-radius:24px;
@@ -495,15 +496,10 @@ h1{
 .keyboard-group{
   display:flex;
   flex-direction:column;
-  gap:8px;
+  gap:0;
 }
 .keyboard-group-label{
-  font-size:0.78rem;
-  font-weight:900;
-  letter-spacing:0.08em;
-  text-transform:uppercase;
-  color:var(--support-ink);
-  text-align:left;
+  display:none;
 }
 .keyboard-grid{
   display:grid;
@@ -1359,9 +1355,6 @@ canvas{
   .panel,
   .modal{
     padding:18px;
-  }
-  .picture-frame{
-    height:max(180px, var(--picture-bottom-height));
   }
   .keyboard-grid,
   .keyboard-grid.consonants{

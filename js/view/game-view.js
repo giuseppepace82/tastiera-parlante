@@ -323,9 +323,9 @@ window.GiocoTastiera = window.GiocoTastiera || {};
         if(index === 2 && this.keyboardGroupThree){
           this.keyboardGroupThree.hidden = false;
         }
-        label.hidden = false;
         grid.hidden = false;
-        label.textContent = section.label;
+        label.hidden = true;
+        label.textContent = "";
         grid.className = "keyboard-grid";
         grid.style.setProperty("--keyboard-columns", String(section.columns));
         this.renderKeyboardGroup(grid, section.letters);
