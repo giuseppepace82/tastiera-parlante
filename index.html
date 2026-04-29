@@ -504,6 +504,9 @@ h1{
   grid-template-columns:repeat(5, minmax(0, 1fr));
   gap:10px;
 }
+.keyboard-grid[data-columns]{
+  grid-template-columns:repeat(var(--keyboard-columns, 5), minmax(0, 1fr));
+}
 .keyboard-grid.consonants{
   grid-template-columns:repeat(7, minmax(0, 1fr));
 }
@@ -1140,6 +1143,12 @@ h1{
   text-transform:uppercase;
   color:var(--support-ink);
 }
+.mobile-only-setting{
+  display:none;
+}
+body.touch-primary .mobile-only-setting{
+  display:block;
+}
 .category-toolbar{
   display:flex;
   flex-wrap:wrap;
@@ -1409,12 +1418,16 @@ canvas{
           </div>
           <div class="keyboard-groups">
             <div class="keyboard-group">
-              <div class="keyboard-group-label" data-i18n="ui.gameplayKeyboardVowels">VOCALI</div>
-              <div id="vowelKeyboardGrid" class="keyboard-grid vowels"></div>
+              <div id="keyboardGroupLabelOne" class="keyboard-group-label" data-i18n="ui.gameplayKeyboardVowels">VOCALI</div>
+              <div id="keyboardGridOne" class="keyboard-grid vowels"></div>
             </div>
             <div class="keyboard-group">
-              <div class="keyboard-group-label" data-i18n="ui.gameplayKeyboardConsonants">CONSONANTI</div>
-              <div id="consonantKeyboardGrid" class="keyboard-grid consonants"></div>
+              <div id="keyboardGroupLabelTwo" class="keyboard-group-label" data-i18n="ui.gameplayKeyboardConsonants">CONSONANTI</div>
+              <div id="keyboardGridTwo" class="keyboard-grid consonants"></div>
+            </div>
+            <div id="keyboardGroupThree" class="keyboard-group" hidden>
+              <div id="keyboardGroupLabelThree" class="keyboard-group-label" data-i18n="ui.gameplayKeyboardGroupRowThree">RIGA 3</div>
+              <div id="keyboardGridThree" class="keyboard-grid"></div>
             </div>
           </div>
         </section>
@@ -1501,6 +1514,23 @@ canvas{
               <input id="highlightExpectedLetterToggle" type="checkbox">
               <span data-i18n="ui.highlightExpectedLetter">EVIDENZIA LA PROSSIMA LETTERA DA DIGITARE</span>
             </label>
+          </div>
+          <div class="mobile-only-setting">
+            <div class="option-title" data-i18n="ui.gameplayKeyboardLayoutTitle">LAYOUT TASTIERA MOBILE</div>
+            <div class="option-group">
+              <label class="switch-row">
+                <input id="gameplayKeyboardLayoutSplit" type="radio" name="gameplayKeyboardLayout" value="split">
+                <span data-i18n="ui.gameplayKeyboardLayoutSplit">VOCALI E CONSONANTI</span>
+              </label>
+              <label class="switch-row">
+                <input id="gameplayKeyboardLayoutQwerty" type="radio" name="gameplayKeyboardLayout" value="qwerty">
+                <span data-i18n="ui.gameplayKeyboardLayoutQwerty">QWERTY</span>
+              </label>
+              <label class="switch-row">
+                <input id="gameplayKeyboardLayoutAlphabetical" type="radio" name="gameplayKeyboardLayout" value="alphabetical">
+                <span data-i18n="ui.gameplayKeyboardLayoutAlphabetical">ORDINE ALFABETICO</span>
+              </label>
+            </div>
           </div>
           <div class="option-title" data-i18n="ui.colorThemeTitle">TEMA COLORI</div>
           <div class="theme-picker">

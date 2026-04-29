@@ -8,6 +8,7 @@ window.GiocoTastiera = window.GiocoTastiera || {};
     CELEBRATION_DURATION_STEP_MS,
     COLOR_THEMES,
     DEFAULT_COLOR_THEME,
+    DEFAULT_GAMEPLAY_KEYBOARD_LAYOUT,
     DEFAULT_IMAGE_PICKER_SOURCES,
     DEFAULT_LETTER_SIZE_PERCENT,
     DEFAULT_PICTURE_PANEL_SIZE_PERCENT,
@@ -52,8 +53,17 @@ window.GiocoTastiera = window.GiocoTastiera || {};
       this.picturePlaceholder = document.getElementById("picturePlaceholder");
       this.pictureImage = document.getElementById("pictureImage");
       this.gameplayKeyboard = document.getElementById("gameplayKeyboard");
-      this.vowelKeyboardGrid = document.getElementById("vowelKeyboardGrid");
-      this.consonantKeyboardGrid = document.getElementById("consonantKeyboardGrid");
+      this.keyboardGroupThree = document.getElementById("keyboardGroupThree");
+      this.keyboardGroupLabels = [
+        document.getElementById("keyboardGroupLabelOne"),
+        document.getElementById("keyboardGroupLabelTwo"),
+        document.getElementById("keyboardGroupLabelThree")
+      ];
+      this.keyboardGrids = [
+        document.getElementById("keyboardGridOne"),
+        document.getElementById("keyboardGridTwo"),
+        document.getElementById("keyboardGridThree")
+      ];
       this.celebrationSkipButton = document.getElementById("celebrationSkipButton");
       this.setupButton = document.getElementById("setupButton");
       this.lockOverlay = document.getElementById("lockOverlay");
@@ -85,6 +95,7 @@ window.GiocoTastiera = window.GiocoTastiera || {};
       this.enableCelebrationToggle = document.getElementById("enableCelebrationToggle");
       this.allowCelebrationSkipToggle = document.getElementById("allowCelebrationSkipToggle");
       this.highlightExpectedLetterToggle = document.getElementById("highlightExpectedLetterToggle");
+      this.gameplayKeyboardLayoutInputs = Array.from(document.querySelectorAll('input[name="gameplayKeyboardLayout"]'));
       this.showThemeDecorationsToggle = document.getElementById("showThemeDecorationsToggle");
       this.colorThemeInputs = Array.from(document.querySelectorAll('input[name="colorTheme"]'));
       this.themeStyleInputs = Array.from(document.querySelectorAll('input[name="themeStyle"]'));
@@ -134,6 +145,7 @@ window.GiocoTastiera = window.GiocoTastiera || {};
       this.deviceMode = { isTouchPrimary: false, isTabletLayout: false, isPortrait: false };
       this.boundKeyboardHandler = null;
       this.keyboardButtons = new Map();
+      this.currentGameplayKeyboardLayout = DEFAULT_GAMEPLAY_KEYBOARD_LAYOUT;
 
       this.buildSettingsEditor();
       this.buildGameplayKeyboard();
@@ -244,20 +256,15 @@ window.GiocoTastiera = window.GiocoTastiera || {};
     }
 
     buildGameplayKeyboard(){
-      if(this.vowelKeyboardGrid){
-        this.renderKeyboardGroup(this.vowelKeyboardGrid, GAMEPLAY_KEYBOARD_VOWELS, "vowel");
-      }
-      if(this.consonantKeyboardGrid){
-        this.renderKeyboardGroup(this.consonantKeyboardGrid, GAMEPLAY_KEYBOARD_CONSONANTS, "consonant");
-      }
+      this.applyGameplayKeyboardLayout({ gameplayKeyboardLayout: this.currentGameplayKeyboardLayout });
     }
 
-    renderKeyboardGroup(container, letters, variant){
+    renderKeyboardGroup(container, letters){
       container.innerHTML = "";
       for(const letter of letters){
         const button = document.createElement("button");
         button.type = "button";
-        button.className = `key-button ${variant}`;
+        button.className = `key-button ${GAMEPLAY_KEYBOARD_VOWELS.includes(letter) ? "vowel" : "consonant"}`;
         button.dataset.letter = letter;
         button.textContent = letter;
         container.appendChild(button);
@@ -265,14 +272,79 @@ window.GiocoTastiera = window.GiocoTastiera || {};
       }
     }
 
+    getGameplayKeyboardSections(layoutId){
+      if(layoutId === "qwerty"){
+        return [
+          { label: t("ui.gameplayKeyboardGroupRowOne"), letters: ["Q", "W", "E", "R", "T", "Y", "U", "I", "O", "P"], columns: 10 },
+          { label: t("ui.gameplayKeyboardGroupRowTwo"), letters: ["A", "S", "D", "F", "G", "H", "J", "K", "L"], columns: 9 },
+          { label: t("ui.gameplayKeyboardGroupRowThree"), letters: ["Z", "X", "C", "V", "B", "N", "M"], columns: 7 }
+        ];
+      }
+
+      if(layoutId === "alphabetical"){
+        return [
+          { label: t("ui.gameplayKeyboardGroupLetters"), letters: ["A", "B", "C", "D", "E", "F", "G", "H", "I"], columns: 9 },
+          { label: t("ui.gameplayKeyboardGroupRowTwo"), letters: ["J", "K", "L", "M", "N", "O", "P", "Q", "R"], columns: 9 },
+          { label: t("ui.gameplayKeyboardGroupRowThree"), letters: ["S", "T", "U", "V", "W", "X", "Y", "Z"], columns: 8 }
+        ];
+      }
+
+      return [
+        { label: t("ui.gameplayKeyboardVowels"), letters: GAMEPLAY_KEYBOARD_VOWELS, columns: 5 },
+        { label: t("ui.gameplayKeyboardConsonants"), letters: GAMEPLAY_KEYBOARD_CONSONANTS, columns: 7 }
+      ];
+    }
+
+    applyGameplayKeyboardLayout(settings){
+      const layoutId = settings && typeof settings.gameplayKeyboardLayout === "string"
+        ? settings.gameplayKeyboardLayout
+        : DEFAULT_GAMEPLAY_KEYBOARD_LAYOUT;
+      this.currentGameplayKeyboardLayout = layoutId;
+      this.keyboardButtons = new Map();
+
+      const sections = this.getGameplayKeyboardSections(layoutId);
+      for(let index = 0; index < this.keyboardGrids.length; index += 1){
+        const grid = this.keyboardGrids[index];
+        const label = this.keyboardGroupLabels[index];
+        const section = sections[index];
+        if(!grid || !label) continue;
+
+        if(!section){
+          grid.innerHTML = "";
+          grid.style.removeProperty("--keyboard-columns");
+          grid.hidden = true;
+          label.hidden = true;
+          if(index === 2 && this.keyboardGroupThree){
+            this.keyboardGroupThree.hidden = true;
+          }
+          continue;
+        }
+
+        if(index === 2 && this.keyboardGroupThree){
+          this.keyboardGroupThree.hidden = false;
+        }
+        label.hidden = false;
+        grid.hidden = false;
+        label.textContent = section.label;
+        grid.className = "keyboard-grid";
+        grid.style.setProperty("--keyboard-columns", String(section.columns));
+        this.renderKeyboardGroup(grid, section.letters);
+      }
+
+      if(typeof this.boundKeyboardHandler === "function"){
+        this.bindGameplayKeyboard(this.boundKeyboardHandler);
+      }
+      this.setKeyboardExpectedLetter("", false);
+    }
+
     bindGameplayKeyboard(handler){
       this.boundKeyboardHandler = handler;
       for(const button of this.keyboardButtons.values()){
-        button.addEventListener("click", () => {
+        button.onclick = () => {
           if(typeof this.boundKeyboardHandler === "function"){
             this.boundKeyboardHandler(button.dataset.letter || "");
           }
-        });
+        };
       }
     }
 
@@ -1997,6 +2069,9 @@ window.GiocoTastiera = window.GiocoTastiera || {};
       this.enableCelebrationToggle.checked = settings.enableCelebration !== false;
       this.allowCelebrationSkipToggle.checked = settings.allowCelebrationSkip !== false;
       this.highlightExpectedLetterToggle.checked = settings.highlightExpectedLetter !== false;
+      for(const input of this.gameplayKeyboardLayoutInputs){
+        input.checked = input.value === (settings.gameplayKeyboardLayout || DEFAULT_GAMEPLAY_KEYBOARD_LAYOUT);
+      }
       if(this.showThemeDecorationsToggle){
         this.showThemeDecorationsToggle.checked = settings.showThemeDecorations !== false;
       }
@@ -2032,6 +2107,7 @@ window.GiocoTastiera = window.GiocoTastiera || {};
       if(this.customCategoryNameInput) this.customCategoryNameInput.value = "";
       this.syncFamilyPicturesEditor();
       this.refreshWordImageEditors();
+      this.applyGameplayKeyboardLayout(settings);
     }
 
     readSettingsEditor(defaultSettingsFactory, sanitizeWords, defaultLibrary){
@@ -2041,6 +2117,10 @@ window.GiocoTastiera = window.GiocoTastiera || {};
       next.enableCelebration = this.enableCelebrationToggle.checked;
       next.allowCelebrationSkip = this.allowCelebrationSkipToggle.checked;
       next.highlightExpectedLetter = this.highlightExpectedLetterToggle.checked;
+      const selectedGameplayKeyboardLayout = this.gameplayKeyboardLayoutInputs.find(input => input.checked);
+      next.gameplayKeyboardLayout = selectedGameplayKeyboardLayout
+        ? selectedGameplayKeyboardLayout.value
+        : DEFAULT_GAMEPLAY_KEYBOARD_LAYOUT;
       next.showThemeDecorations = !(this.showThemeDecorationsToggle && !this.showThemeDecorationsToggle.checked);
       const selectedColorTheme = this.colorThemeInputs.find(input => input.checked);
       next.colorTheme = selectedColorTheme && COLOR_THEMES[selectedColorTheme.value]

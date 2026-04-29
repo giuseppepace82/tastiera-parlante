@@ -11,6 +11,7 @@ window.GiocoTastiera = window.GiocoTastiera || {};
     DEFAULT_ENABLED,
     DEFAULT_COLOR_THEME,
     DEFAULT_IMAGE_CACHE_ENABLED,
+    DEFAULT_GAMEPLAY_KEYBOARD_LAYOUT,
     DEFAULT_LIBRARY,
     COLOR_THEMES,
     LETTER_SIZE_STEP_PERCENT,
@@ -257,6 +258,12 @@ window.GiocoTastiera = window.GiocoTastiera || {};
     return Math.round(clamped / PICTURE_PANEL_SIZE_STEP_PERCENT) * PICTURE_PANEL_SIZE_STEP_PERCENT;
   }
 
+  function normalizeGameplayKeyboardLayout(value){
+    return value === "qwerty" || value === "alphabetical" || value === "split"
+      ? value
+      : DEFAULT_GAMEPLAY_KEYBOARD_LAYOUT;
+  }
+
   function buildWordLayout(word){
     const displayWord = String(word || "").toUpperCase();
     const normalizedDisplayWord = stripAccents(displayWord);
@@ -331,6 +338,7 @@ window.GiocoTastiera = window.GiocoTastiera || {};
       enableCelebration: true,
       allowCelebrationSkip: true,
       highlightExpectedLetter: true,
+      gameplayKeyboardLayout: DEFAULT_GAMEPLAY_KEYBOARD_LAYOUT,
       colorTheme: DEFAULT_COLOR_THEME,
       themeStyle: "soft",
       showThemeDecorations: true,
@@ -357,6 +365,7 @@ window.GiocoTastiera = window.GiocoTastiera || {};
       next.enableCelebration = raw.enableCelebration !== false;
       next.allowCelebrationSkip = raw.allowCelebrationSkip !== false;
       next.highlightExpectedLetter = raw.highlightExpectedLetter !== false;
+      next.gameplayKeyboardLayout = normalizeGameplayKeyboardLayout(raw.gameplayKeyboardLayout);
       if(typeof raw.colorTheme === "string" && COLOR_THEMES[raw.colorTheme]){
         next.colorTheme = raw.colorTheme;
       }

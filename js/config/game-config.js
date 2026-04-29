@@ -43,6 +43,14 @@ window.GiocoTastiera = window.GiocoTastiera || {};
         gameplayKeyboard: "Tastiera di gioco",
         gameplayKeyboardVowels: "Vocali",
         gameplayKeyboardConsonants: "Consonanti",
+        gameplayKeyboardLayoutTitle: "Layout tastiera mobile",
+        gameplayKeyboardLayoutQwerty: "Qwerty",
+        gameplayKeyboardLayoutSplit: "Vocali e consonanti",
+        gameplayKeyboardLayoutAlphabetical: "Ordine alfabetico",
+        gameplayKeyboardGroupLetters: "Lettere",
+        gameplayKeyboardGroupRowOne: "Riga 1",
+        gameplayKeyboardGroupRowTwo: "Riga 2",
+        gameplayKeyboardGroupRowThree: "Riga 3",
         gameplaySkipCelebration: "Salta",
         lockTitle: "Setup",
         lockIntro: "Per entrare risolvi la somma.",
@@ -556,6 +564,7 @@ window.GiocoTastiera = window.GiocoTastiera || {};
     ARASAAC_IMAGE_SIZE: 500,
     GAMEPLAY_KEYBOARD_VOWELS: ["A", "E", "I", "O", "U"],
     GAMEPLAY_KEYBOARD_CONSONANTS: ["B", "C", "D", "F", "G", "H", "J", "K", "L", "M", "N", "P", "Q", "R", "S", "T", "V", "W", "X", "Y", "Z"],
+    DEFAULT_GAMEPLAY_KEYBOARD_LAYOUT: "split",
 
     LETTER_NAMES_IT: {
       A: "a",
