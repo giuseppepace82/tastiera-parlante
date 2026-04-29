@@ -5,6 +5,7 @@ window.GiocoTastiera = window.GiocoTastiera || {};
     CATEGORY_ORDER,
     CELEBRATION_MS,
     CELEBRATION_DELAY_STEP_MS,
+    CELEBRATION_DURATION_STEP_MS,
     COLOR_THEMES,
     DEFAULT_COLOR_THEME,
     DEFAULT_IMAGE_PICKER_SOURCES,
@@ -13,6 +14,7 @@ window.GiocoTastiera = window.GiocoTastiera || {};
     DEFAULT_PICTURE_ZOOM_PERCENT,
     LETTER_SIZE_STEP_PERCENT,
     MAX_CELEBRATION_DELAY_MS,
+    MAX_CELEBRATION_DURATION_MS,
     MAX_LETTER_SIZE_PERCENT,
     MAX_PICTURE_PANEL_SIZE_PERCENT,
     MAX_PICTURE_ZOOM_PERCENT,
@@ -21,6 +23,7 @@ window.GiocoTastiera = window.GiocoTastiera || {};
     MIN_PICTURE_PANEL_SIZE_PERCENT,
     MIN_PICTURE_ZOOM_PERCENT,
     MIN_CELEBRATION_DELAY_MS,
+    MIN_CELEBRATION_DURATION_MS,
     PICTURE_PANEL_SIZE_STEP_PERCENT,
     PICTURE_ZOOM_STEP_PERCENT,
     getCategoryLabel,
@@ -89,6 +92,8 @@ window.GiocoTastiera = window.GiocoTastiera || {};
       this.celebrationMusicVolumeValue = document.getElementById("celebrationMusicVolumeValue");
       this.celebrationDelayRange = document.getElementById("celebrationDelayRange");
       this.celebrationDelayValue = document.getElementById("celebrationDelayValue");
+      this.celebrationDurationRange = document.getElementById("celebrationDurationRange");
+      this.celebrationDurationValue = document.getElementById("celebrationDurationValue");
       this.picturePositionSide = document.getElementById("picturePositionSide");
       this.picturePositionBottom = document.getElementById("picturePositionBottom");
       this.customCategoryNameInput = document.getElementById("customCategoryNameInput");
@@ -104,7 +109,8 @@ window.GiocoTastiera = window.GiocoTastiera || {};
       this.fxCtx = this.fxCanvas.getContext("2d");
       this.fxState = null;
       this.familyPictureDrafts = {};
-      this.preferredWordImagesDraft = {};
+      this.wordOverridesDraft = {};
+      this.selectedWordConfigByCategory = {};
       this.customCategoryDrafts = [];
       this.familyWordsInput = null;
       this.familyPicturesEditor = null;
@@ -150,6 +156,12 @@ window.GiocoTastiera = window.GiocoTastiera || {};
       if(this.celebrationDelayRange){
         this.celebrationDelayRange.addEventListener("input", () => {
           this.updateDelayLabel(this.celebrationDelayRange, this.celebrationDelayValue);
+        });
+      }
+
+      if(this.celebrationDurationRange){
+        this.celebrationDurationRange.addEventListener("input", () => {
+          this.updateDelayLabel(this.celebrationDurationRange, this.celebrationDurationValue);
         });
       }
 
@@ -269,6 +281,115 @@ window.GiocoTastiera = window.GiocoTastiera || {};
       return rawValue || this.imageService.getDefaultSearchQuery(this.currentImagePickerEntry);
     }
 
+    getWordOverrideDraft(category, word){
+      const key = wordImageKey(category, word);
+      if(!this.wordOverridesDraft[key] || typeof this.wordOverridesDraft[key] !== "object"){
+        this.wordOverridesDraft[key] = {};
+      }
+      return this.wordOverridesDraft[key];
+    }
+
+    getWordImageSelection(category, word){
+      const draft = this.wordOverridesDraft[wordImageKey(category, word)];
+      return draft && draft.image ? draft.image : null;
+    }
+
+    getWordCelebrationSelection(category, word){
+      const draft = this.wordOverridesDraft[wordImageKey(category, word)];
+      return draft && draft.celebration ? draft.celebration : null;
+    }
+
+    cleanupWordOverride(category, word){
+      const key = wordImageKey(category, word);
+      this.cleanupWordOverrideByKey(key);
+    }
+
+    cleanupWordOverrideByKey(key){
+      const draft = this.wordOverridesDraft[key];
+      if(!draft) return;
+      const hasImage = Boolean(draft.image && draft.image.src);
+      const hasCelebration = Boolean(
+        draft.celebration &&
+        (
+          draft.celebration.enabled ||
+          draft.celebration.audioSrc ||
+          draft.celebration.fxStickerSrc
+        )
+      );
+      if(!hasImage && !hasCelebration){
+        delete this.wordOverridesDraft[key];
+      }
+    }
+
+    updateWordCelebrationStatus(category, word){
+      const celebration = this.getWordCelebrationSelection(category, word);
+      const key = wordImageKey(category, word);
+      const audioStatus = this.settingsGrid.querySelector(`[data-word-celebration-audio-status="${key}"]`);
+      const stickerStatus = this.settingsGrid.querySelector(`[data-word-celebration-sticker-status="${key}"]`);
+      const audioButton = this.settingsGrid.querySelector(`[data-word-celebration-audio-button="${key}"]`);
+      const audioRemove = this.settingsGrid.querySelector(`[data-word-celebration-audio-remove="${key}"]`);
+      const stickerButton = this.settingsGrid.querySelector(`[data-word-celebration-sticker-button="${key}"]`);
+      const stickerRemove = this.settingsGrid.querySelector(`[data-word-celebration-sticker-remove="${key}"]`);
+      const toggle = this.settingsGrid.querySelector(`[data-word-celebration-toggle="${key}"]`);
+      const controls = this.settingsGrid.querySelector(`[data-word-celebration-controls="${key}"]`);
+      const enabled = Boolean(celebration && celebration.enabled);
+      const hasAudio = Boolean(celebration && celebration.audioSrc);
+      const hasSticker = Boolean(celebration && celebration.fxStickerSrc);
+      const audioVolumeValue = celebration && Number.isFinite(Number(celebration.audioVolume))
+        ? this.volumeToSlider(celebration.audioVolume)
+        : this.volumeToSlider(70);
+      const durationValue = celebration && Number.isFinite(Number(celebration.durationMs))
+        ? this.durationToSlider(celebration.durationMs)
+        : this.durationToSlider(CELEBRATION_MS);
+
+      if(toggle){
+        toggle.checked = enabled;
+      }
+      if(controls){
+        controls.hidden = !enabled;
+      }
+      if(audioStatus){
+        audioStatus.textContent = hasAudio
+          ? `${t("ui.wordCelebrationAudioReady")} • ${celebration.audioLabel || t("ui.wordCelebrationLocalAudio")}`
+          : t("ui.wordCelebrationAudioMissing");
+      }
+      if(stickerStatus){
+        stickerStatus.textContent = hasSticker
+          ? t("ui.wordCelebrationStickerReady")
+          : t("ui.wordCelebrationStickerMissing");
+      }
+      if(audioButton){
+        audioButton.textContent = hasAudio ? t("ui.wordCelebrationAudioChange") : t("ui.wordCelebrationAudioUpload");
+      }
+      if(audioRemove){
+        audioRemove.disabled = !hasAudio;
+      }
+      if(stickerButton){
+        stickerButton.textContent = hasSticker ? t("ui.wordCelebrationStickerChange") : t("ui.wordCelebrationStickerUpload");
+      }
+      if(stickerRemove){
+        stickerRemove.disabled = !hasSticker;
+      }
+      const volumeInput = this.settingsGrid.querySelector(`[data-word-celebration-audio-volume="${key}"]`);
+      const volumeOutput = this.settingsGrid.querySelector(`[data-word-celebration-audio-volume-value="${key}"]`);
+      if(volumeInput){
+        volumeInput.value = audioVolumeValue;
+        volumeInput.disabled = !enabled;
+      }
+      if(volumeOutput){
+        volumeOutput.textContent = `${audioVolumeValue}%`;
+      }
+      const durationInput = this.settingsGrid.querySelector(`[data-word-celebration-duration="${key}"]`);
+      const durationOutput = this.settingsGrid.querySelector(`[data-word-celebration-duration-value="${key}"]`);
+      if(durationInput){
+        durationInput.value = durationValue;
+        durationInput.disabled = !enabled;
+      }
+      if(durationOutput){
+        durationOutput.textContent = `${(Number(durationValue) / 1000).toFixed(Number(durationValue) % 1000 === 0 ? 0 : 2)} s`;
+      }
+    }
+
     volumeToSlider(volume){
       const parsed = Number(volume);
       const safe = Number.isFinite(parsed) ? parsed : 0;
@@ -335,7 +456,7 @@ window.GiocoTastiera = window.GiocoTastiera || {};
       if(!category || !word) return;
 
       const key = wordImageKey(category, word);
-      const current = this.preferredWordImagesDraft[key];
+      const current = this.getWordImageSelection(category, word);
       if(!current || !current.src) return;
 
       const zoomPercent = this.sliderToPictureZoom(input, current.zoomPercent);
@@ -360,6 +481,21 @@ window.GiocoTastiera = window.GiocoTastiera || {};
       if(!Number.isFinite(parsed)) return fallback;
       const clamped = Math.min(Math.max(parsed, MIN_CELEBRATION_DELAY_MS), MAX_CELEBRATION_DELAY_MS);
       return Math.round(clamped / CELEBRATION_DELAY_STEP_MS) * CELEBRATION_DELAY_STEP_MS;
+    }
+
+    durationToSlider(duration){
+      const parsed = Number(duration);
+      const safe = Number.isFinite(parsed) ? parsed : CELEBRATION_MS;
+      const clamped = Math.min(Math.max(safe, MIN_CELEBRATION_DURATION_MS), MAX_CELEBRATION_DURATION_MS);
+      return String(Math.round(clamped / CELEBRATION_DURATION_STEP_MS) * CELEBRATION_DURATION_STEP_MS);
+    }
+
+    sliderToDuration(input, fallback = CELEBRATION_MS){
+      if(!input) return fallback;
+      const parsed = Number(input.value);
+      if(!Number.isFinite(parsed)) return fallback;
+      const clamped = Math.min(Math.max(parsed, MIN_CELEBRATION_DURATION_MS), MAX_CELEBRATION_DURATION_MS);
+      return Math.round(clamped / CELEBRATION_DURATION_STEP_MS) * CELEBRATION_DURATION_STEP_MS;
     }
 
     applyI18n(){
@@ -475,6 +611,287 @@ window.GiocoTastiera = window.GiocoTastiera || {};
       return card;
     }
 
+    ensureSelectedWordForCategory(category, words){
+      const safeWords = Array.isArray(words) ? words : [];
+      if(!safeWords.length){
+        delete this.selectedWordConfigByCategory[category];
+        return "";
+      }
+
+      const selected = this.selectedWordConfigByCategory[category];
+      if(selected && safeWords.includes(selected)){
+        return selected;
+      }
+
+      this.selectedWordConfigByCategory[category] = safeWords[0];
+      return safeWords[0];
+    }
+
+    renderWordConfigPicker(editor, category, words){
+      editor.innerHTML = "";
+      if(!editor) return "";
+
+      const safeWords = Array.isArray(words) ? words : [];
+      if(!safeWords.length){
+        const empty = document.createElement("div");
+        empty.className = "word-config-empty";
+        empty.textContent = t("ui.wordConfigEmpty");
+        editor.appendChild(empty);
+        delete this.selectedWordConfigByCategory[category];
+        return "";
+      }
+
+      const selectedWord = this.ensureSelectedWordForCategory(category, safeWords);
+      const picker = document.createElement("div");
+      picker.className = "word-config-picker";
+
+      const label = document.createElement("label");
+      label.htmlFor = `word-config-select-${category}`;
+
+      const title = document.createElement("span");
+      title.textContent = t("ui.wordConfigSelectLabel");
+
+      const select = document.createElement("select");
+      select.id = `word-config-select-${category}`;
+      select.dataset.wordConfigSelect = category;
+
+      const placeholder = document.createElement("option");
+      placeholder.value = "";
+      placeholder.textContent = t("ui.wordConfigSelectPlaceholder");
+      placeholder.hidden = true;
+      picker.appendChild(label);
+      label.append(title, select);
+
+      for(const word of safeWords){
+        const option = document.createElement("option");
+        option.value = word;
+        option.textContent = word.toUpperCase();
+        select.appendChild(option);
+      }
+
+      select.value = selectedWord;
+      editor.appendChild(picker);
+      return selectedWord;
+    }
+
+    buildSingleWordConfigRow(category, categoryLabel, word){
+      const key = wordImageKey(category, word);
+      const selected = this.getWordImageSelection(category, word);
+      const celebration = this.getWordCelebrationSelection(category, word);
+      const celebrationEnabled = Boolean(celebration && celebration.enabled);
+      const hasCelebrationAudio = Boolean(celebration && celebration.audioSrc);
+      const hasCelebrationSticker = Boolean(celebration && celebration.fxStickerSrc);
+      const celebrationAudioVolume = celebration && Number.isFinite(Number(celebration.audioVolume))
+        ? Number(celebration.audioVolume)
+        : 70;
+      const celebrationDuration = celebration && Number.isFinite(Number(celebration.durationMs))
+        ? Number(celebration.durationMs)
+        : CELEBRATION_MS;
+
+      const row = document.createElement("div");
+      row.className = "word-image-row";
+
+      const name = document.createElement("div");
+      name.className = "word-image-name";
+      name.textContent = word.toUpperCase();
+
+      const actions = document.createElement("div");
+      actions.className = "word-image-actions";
+
+      const choose = document.createElement("button");
+      choose.type = "button";
+      choose.className = "secondary";
+      choose.dataset.selectWordImage = category;
+      choose.dataset.word = word;
+      choose.dataset.categoryLabel = categoryLabel || getCategoryLabel(category);
+      choose.textContent = selected ? t("ui.changeWordImage") : t("ui.selectWordImage");
+
+      const clear = document.createElement("button");
+      clear.type = "button";
+      clear.className = "secondary";
+      clear.dataset.clearWordImage = category;
+      clear.dataset.word = word;
+      clear.disabled = !selected;
+      clear.textContent = t("ui.clearWordImage");
+
+      actions.append(choose, clear);
+
+      const status = document.createElement("div");
+      status.className = "word-image-status";
+      status.textContent = selected ? t("ui.wordImageSelected") : t("ui.wordImageAutomatic");
+
+      const imageSection = document.createElement("section");
+      imageSection.className = "word-config-block";
+
+      const imageSectionTitle = document.createElement("div");
+      imageSectionTitle.className = "word-config-title";
+      imageSectionTitle.textContent = t("ui.wordImageSectionTitle");
+
+      imageSection.append(imageSectionTitle, actions, status);
+
+      if(selected){
+        const zoomControl = document.createElement("div");
+        zoomControl.className = "slider-control word-image-zoom-control";
+
+        const zoomLabel = document.createElement("label");
+        zoomLabel.htmlFor = `word-image-zoom-${key}`;
+
+        const zoomTitle = document.createElement("span");
+        zoomTitle.textContent = t("ui.pictureZoom");
+
+        const zoomValue = document.createElement("span");
+        zoomValue.className = "slider-value";
+        zoomValue.dataset.wordImageZoomValue = "true";
+        zoomValue.textContent = `${this.pictureZoomToSlider(selected.zoomPercent)}%`;
+
+        zoomLabel.append(zoomTitle, zoomValue);
+
+        const zoomInput = document.createElement("input");
+        zoomInput.type = "range";
+        zoomInput.id = `word-image-zoom-${key}`;
+        zoomInput.min = String(MIN_PICTURE_ZOOM_PERCENT);
+        zoomInput.max = String(MAX_PICTURE_ZOOM_PERCENT);
+        zoomInput.step = String(PICTURE_ZOOM_STEP_PERCENT);
+        zoomInput.value = this.pictureZoomToSlider(selected.zoomPercent);
+        zoomInput.dataset.wordImageZoom = "true";
+        zoomInput.dataset.wordImageZoomCategory = category;
+        zoomInput.dataset.wordImageZoomWord = word;
+
+        zoomControl.append(zoomLabel, zoomInput);
+        imageSection.appendChild(zoomControl);
+      }
+
+      const celebrationSection = document.createElement("section");
+      celebrationSection.className = "word-config-block word-celebration-block";
+
+      const celebrationTitle = document.createElement("div");
+      celebrationTitle.className = "word-config-title";
+      celebrationTitle.textContent = t("ui.wordCelebrationSectionTitle");
+
+      const celebrationToggleRow = document.createElement("label");
+      celebrationToggleRow.className = "switch-row";
+      const celebrationToggle = document.createElement("input");
+      celebrationToggle.type = "checkbox";
+      celebrationToggle.dataset.wordCelebrationToggle = key;
+      celebrationToggle.checked = celebrationEnabled;
+      const celebrationToggleText = document.createElement("span");
+      celebrationToggleText.textContent = t("ui.wordCelebrationToggle");
+      celebrationToggleRow.append(celebrationToggle, celebrationToggleText);
+
+      const celebrationControls = document.createElement("div");
+      celebrationControls.className = "word-celebration-controls";
+      celebrationControls.dataset.wordCelebrationControls = key;
+      celebrationControls.hidden = !celebrationEnabled;
+
+      const audioRow = document.createElement("div");
+      audioRow.className = "word-image-actions";
+      const audioButton = document.createElement("button");
+      audioButton.type = "button";
+      audioButton.className = "secondary";
+      audioButton.dataset.wordCelebrationAudioButton = key;
+      audioButton.textContent = hasCelebrationAudio ? t("ui.wordCelebrationAudioChange") : t("ui.wordCelebrationAudioUpload");
+      const audioRemove = document.createElement("button");
+      audioRemove.type = "button";
+      audioRemove.className = "secondary";
+      audioRemove.dataset.wordCelebrationAudioRemove = key;
+      audioRemove.disabled = !hasCelebrationAudio;
+      audioRemove.textContent = t("ui.wordCelebrationAudioRemove");
+      const audioInput = document.createElement("input");
+      audioInput.type = "file";
+      audioInput.accept = "audio/*";
+      audioInput.hidden = true;
+      audioInput.dataset.wordCelebrationAudioInput = key;
+      audioRow.append(audioButton, audioRemove, audioInput);
+
+      const audioStatus = document.createElement("div");
+      audioStatus.className = "word-image-status";
+      audioStatus.dataset.wordCelebrationAudioStatus = key;
+      audioStatus.textContent = hasCelebrationAudio
+        ? `${t("ui.wordCelebrationAudioReady")} • ${celebration.audioLabel || t("ui.wordCelebrationLocalAudio")}`
+        : t("ui.wordCelebrationAudioMissing");
+
+      const audioVolumeControl = document.createElement("div");
+      audioVolumeControl.className = "slider-control word-image-zoom-control";
+      const audioVolumeLabel = document.createElement("label");
+      audioVolumeLabel.htmlFor = `word-celebration-audio-volume-${key}`;
+      const audioVolumeTitle = document.createElement("span");
+      audioVolumeTitle.textContent = t("ui.wordCelebrationAudioVolume");
+      const audioVolumeValue = document.createElement("span");
+      audioVolumeValue.className = "slider-value";
+      audioVolumeValue.dataset.wordCelebrationAudioVolumeValue = key;
+      audioVolumeValue.textContent = `${this.volumeToSlider(celebrationAudioVolume)}%`;
+      audioVolumeLabel.append(audioVolumeTitle, audioVolumeValue);
+      const audioVolumeInput = document.createElement("input");
+      audioVolumeInput.type = "range";
+      audioVolumeInput.id = `word-celebration-audio-volume-${key}`;
+      audioVolumeInput.min = "0";
+      audioVolumeInput.max = "100";
+      audioVolumeInput.step = "5";
+      audioVolumeInput.value = this.volumeToSlider(celebrationAudioVolume);
+      audioVolumeInput.disabled = !celebrationEnabled;
+      audioVolumeInput.dataset.wordCelebrationAudioVolume = key;
+      audioVolumeControl.append(audioVolumeLabel, audioVolumeInput);
+
+      const durationControl = document.createElement("div");
+      durationControl.className = "slider-control word-image-zoom-control";
+      const durationLabel = document.createElement("label");
+      durationLabel.htmlFor = `word-celebration-duration-${key}`;
+      const durationTitle = document.createElement("span");
+      durationTitle.textContent = t("ui.wordCelebrationDuration");
+      const durationValue = document.createElement("span");
+      durationValue.className = "slider-value";
+      durationValue.dataset.wordCelebrationDurationValue = key;
+      durationValue.textContent = `${(celebrationDuration / 1000).toFixed(celebrationDuration % 1000 === 0 ? 0 : 2)} s`;
+      durationLabel.append(durationTitle, durationValue);
+      const durationInput = document.createElement("input");
+      durationInput.type = "range";
+      durationInput.id = `word-celebration-duration-${key}`;
+      durationInput.min = String(MIN_CELEBRATION_DURATION_MS);
+      durationInput.max = String(MAX_CELEBRATION_DURATION_MS);
+      durationInput.step = String(CELEBRATION_DURATION_STEP_MS);
+      durationInput.value = this.durationToSlider(celebrationDuration);
+      durationInput.disabled = !celebrationEnabled;
+      durationInput.dataset.wordCelebrationDuration = key;
+      durationControl.append(durationLabel, durationInput);
+
+      const stickerRow = document.createElement("div");
+      stickerRow.className = "word-image-actions";
+      const stickerButton = document.createElement("button");
+      stickerButton.type = "button";
+      stickerButton.className = "secondary";
+      stickerButton.dataset.wordCelebrationStickerButton = key;
+      stickerButton.textContent = hasCelebrationSticker ? t("ui.wordCelebrationStickerChange") : t("ui.wordCelebrationStickerUpload");
+      const stickerRemove = document.createElement("button");
+      stickerRemove.type = "button";
+      stickerRemove.className = "secondary";
+      stickerRemove.dataset.wordCelebrationStickerRemove = key;
+      stickerRemove.disabled = !hasCelebrationSticker;
+      stickerRemove.textContent = t("ui.wordCelebrationStickerRemove");
+      const stickerInput = document.createElement("input");
+      stickerInput.type = "file";
+      stickerInput.accept = "image/*";
+      stickerInput.hidden = true;
+      stickerInput.dataset.wordCelebrationStickerInput = key;
+      stickerRow.append(stickerButton, stickerRemove, stickerInput);
+
+      const stickerStatus = document.createElement("div");
+      stickerStatus.className = "word-image-status";
+      stickerStatus.dataset.wordCelebrationStickerStatus = key;
+      stickerStatus.textContent = hasCelebrationSticker
+        ? t("ui.wordCelebrationStickerReady")
+        : t("ui.wordCelebrationStickerMissing");
+
+      const celebrationNote = document.createElement("div");
+      celebrationNote.className = "word-image-status";
+      celebrationNote.textContent = t("ui.wordCelebrationFallbackNote");
+
+      celebrationControls.append(audioRow, audioStatus, audioVolumeControl, durationControl, stickerRow, stickerStatus, celebrationNote);
+      celebrationSection.append(celebrationTitle, celebrationToggleRow, celebrationControls);
+
+      row.append(name, imageSection, celebrationSection);
+      return row;
+    }
+
     buildSettingsEditor(){
       this.settingsGrid.innerHTML = "";
       for(const category of CATEGORY_ORDER){
@@ -504,6 +921,32 @@ window.GiocoTastiera = window.GiocoTastiera || {};
         const clearButton = event.target.closest("[data-clear-word-image]");
         if(clearButton){
           this.clearWordImageSelection(clearButton.dataset.clearWordImage, clearButton.dataset.word);
+          return;
+        }
+
+        const audioButton = event.target.closest("[data-word-celebration-audio-button]");
+        if(audioButton){
+          const input = this.settingsGrid.querySelector(`[data-word-celebration-audio-input="${audioButton.dataset.wordCelebrationAudioButton}"]`);
+          if(input) input.click();
+          return;
+        }
+
+        const audioRemove = event.target.closest("[data-word-celebration-audio-remove]");
+        if(audioRemove){
+          this.clearWordCelebrationAudio(audioRemove.dataset.wordCelebrationAudioRemove);
+          return;
+        }
+
+        const stickerButton = event.target.closest("[data-word-celebration-sticker-button]");
+        if(stickerButton){
+          const input = this.settingsGrid.querySelector(`[data-word-celebration-sticker-input="${stickerButton.dataset.wordCelebrationStickerButton}"]`);
+          if(input) input.click();
+          return;
+        }
+
+        const stickerRemove = event.target.closest("[data-word-celebration-sticker-remove]");
+        if(stickerRemove){
+          this.clearWordCelebrationSticker(stickerRemove.dataset.wordCelebrationStickerRemove);
         }
       });
 
@@ -528,8 +971,61 @@ window.GiocoTastiera = window.GiocoTastiera || {};
           return;
         }
 
+        if(target.matches("[data-word-config-select]")){
+          this.selectedWordConfigByCategory[target.dataset.wordConfigSelect] = target.value;
+          const wordsInput = this.settingsGrid.querySelector(`[data-words="${target.dataset.wordConfigSelect}"]`);
+          if(wordsInput){
+            this.renderWordImagesEditor(
+              target.dataset.wordConfigSelect,
+              getCategoryLabel(target.dataset.wordConfigSelect),
+              sanitizeWordList(wordsInput.value)
+            );
+            return;
+          }
+
+          const customWordsInput = this.settingsGrid.querySelector(`[data-custom-words="${target.dataset.wordConfigSelect}"]`);
+          const customLabelInput = this.settingsGrid.querySelector(`[data-custom-label="${target.dataset.wordConfigSelect}"]`);
+          this.renderWordImagesEditor(
+            target.dataset.wordConfigSelect,
+            customLabelInput ? customLabelInput.value.trim() : "",
+            sanitizeWordList(customWordsInput ? customWordsInput.value : "")
+          );
+          return;
+        }
+
         if(target.matches("[data-word-image-zoom]")){
           this.updateWordImageZoom(target);
+          return;
+        }
+
+        if(target.matches("[data-word-celebration-toggle]")){
+          this.toggleWordCelebration(target.dataset.wordCelebrationToggle, target.checked);
+          return;
+        }
+
+        if(target.matches("[data-word-celebration-audio-volume]")){
+          this.updateWordCelebrationAudioVolume(target);
+          return;
+        }
+
+        if(target.matches("[data-word-celebration-duration]")){
+          this.updateWordCelebrationDuration(target);
+        }
+      });
+
+      this.settingsGrid.addEventListener("change", async event => {
+        const target = event.target;
+        if(target.matches("[data-word-celebration-audio-input]")){
+          const file = target.files && target.files[0] ? target.files[0] : null;
+          await this.applyWordCelebrationAudioUpload(target.dataset.wordCelebrationAudioInput, file);
+          target.value = "";
+          return;
+        }
+
+        if(target.matches("[data-word-celebration-sticker-input]")){
+          const file = target.files && target.files[0] ? target.files[0] : null;
+          await this.applyWordCelebrationStickerUpload(target.dataset.wordCelebrationStickerInput, file);
+          target.value = "";
         }
       });
     }
@@ -557,8 +1053,9 @@ window.GiocoTastiera = window.GiocoTastiera || {};
         button.className = "image-choice-card";
         button.addEventListener("click", () => {
           const key = wordImageKey(entry.category, entry.word);
-          const existing = this.preferredWordImagesDraft[key];
-          this.preferredWordImagesDraft[key] = {
+          const draft = this.getWordOverrideDraft(entry.category, entry.word);
+          const existing = draft.image;
+          draft.image = {
             src: candidate.src,
             source: candidate.source,
             sourceKind: candidate.sourceKind || "preferred",
@@ -589,8 +1086,9 @@ window.GiocoTastiera = window.GiocoTastiera || {};
       try{
         const src = await this.readLocalImage(file);
         const key = wordImageKey(this.currentImagePickerEntry.category, this.currentImagePickerEntry.word);
-        const existing = this.preferredWordImagesDraft[key];
-        this.preferredWordImagesDraft[key] = {
+        const draft = this.getWordOverrideDraft(this.currentImagePickerEntry.category, this.currentImagePickerEntry.word);
+        const existing = draft.image;
+        draft.image = {
           src,
           source: t("ui.imageSourceUploadedWord"),
           sourceKind: "upload",
@@ -721,106 +1219,190 @@ window.GiocoTastiera = window.GiocoTastiera || {};
     }
 
     clearWordImageSelection(category, word){
-      delete this.preferredWordImagesDraft[wordImageKey(category, word)];
+      const draft = this.getWordOverrideDraft(category, word);
+      delete draft.image;
+      this.cleanupWordOverride(category, word);
       this.refreshWordImageEditors();
+    }
+
+    toggleWordCelebration(key, enabled){
+      const draft = this.wordOverridesDraft[key] || (this.wordOverridesDraft[key] = {});
+      const celebration = draft.celebration || {
+        enabled: false,
+        audioSrc: "",
+        audioLabel: "",
+        audioVolume: 70,
+        durationMs: CELEBRATION_MS,
+        fxStickerSrc: "",
+        fxMode: "default"
+      };
+      celebration.enabled = enabled === true;
+      celebration.fxMode = celebration.fxStickerSrc ? "sticker" : "default";
+      draft.celebration = celebration;
+      this.cleanupWordOverrideByKey(key);
+      this.updateWordCelebrationStatusByKey(key);
+    }
+
+    updateWordCelebrationAudioVolume(input){
+      if(!input) return;
+      const key = input.dataset.wordCelebrationAudioVolume;
+      if(!key) return;
+      const draft = this.wordOverridesDraft[key] || (this.wordOverridesDraft[key] = {});
+      const celebration = draft.celebration || {
+        enabled: true,
+        audioSrc: "",
+        audioLabel: "",
+        audioVolume: 70,
+        durationMs: CELEBRATION_MS,
+        fxStickerSrc: "",
+        fxMode: "default"
+      };
+      celebration.audioVolume = this.sliderToVolume(input, celebration.audioVolume || 70);
+      draft.celebration = celebration;
+      const output = this.settingsGrid.querySelector(`[data-word-celebration-audio-volume-value="${key}"]`);
+      if(output){
+        output.textContent = `${this.volumeToSlider(celebration.audioVolume)}%`;
+      }
+    }
+
+    updateWordCelebrationDuration(input){
+      if(!input) return;
+      const key = input.dataset.wordCelebrationDuration;
+      if(!key) return;
+      const draft = this.wordOverridesDraft[key] || (this.wordOverridesDraft[key] = {});
+      const celebration = draft.celebration || {
+        enabled: true,
+        audioSrc: "",
+        audioLabel: "",
+        audioVolume: 70,
+        durationMs: CELEBRATION_MS,
+        fxStickerSrc: "",
+        fxMode: "default"
+      };
+      celebration.durationMs = this.sliderToDuration(input, celebration.durationMs || CELEBRATION_MS);
+      draft.celebration = celebration;
+      const output = this.settingsGrid.querySelector(`[data-word-celebration-duration-value="${key}"]`);
+      if(output){
+        output.textContent = `${(celebration.durationMs / 1000).toFixed(celebration.durationMs % 1000 === 0 ? 0 : 2)} s`;
+      }
+    }
+
+    updateWordCelebrationStatusByKey(key){
+      const [category, word] = String(key || "").split(":");
+      if(!category || !word) return;
+      this.updateWordCelebrationStatus(category, word);
+    }
+
+    clearWordCelebrationAudio(key){
+      const draft = this.wordOverridesDraft[key];
+      if(!draft || !draft.celebration) return;
+      draft.celebration.audioSrc = "";
+      draft.celebration.audioLabel = "";
+      this.cleanupWordOverrideByKey(key);
+      this.updateWordCelebrationStatusByKey(key);
+    }
+
+    clearWordCelebrationSticker(key){
+      const draft = this.wordOverridesDraft[key];
+      if(!draft || !draft.celebration) return;
+      draft.celebration.fxStickerSrc = "";
+      draft.celebration.fxMode = "default";
+      this.cleanupWordOverrideByKey(key);
+      this.updateWordCelebrationStatusByKey(key);
+    }
+
+    async readLocalAudio(file){
+      if(!file || !(file.type || "").startsWith("audio/")){
+        throw new Error("invalid-audio");
+      }
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => {
+          if(typeof reader.result === "string" && reader.result.startsWith("data:audio/")){
+            resolve(reader.result);
+            return;
+          }
+          reject(new Error("invalid-audio"));
+        };
+        reader.onerror = () => reject(new Error("file-read-error"));
+        reader.readAsDataURL(file);
+      });
+    }
+
+    async applyWordCelebrationAudioUpload(key, file){
+      if(!key || !file) return;
+      try{
+        const src = await this.readLocalAudio(file);
+        const draft = this.wordOverridesDraft[key] || (this.wordOverridesDraft[key] = {});
+        const celebration = draft.celebration || { enabled: true, audioSrc: "", audioLabel: "", audioVolume: 70, durationMs: CELEBRATION_MS, fxStickerSrc: "", fxMode: "default" };
+        celebration.enabled = true;
+        celebration.audioSrc = src;
+        celebration.audioLabel = file.name || t("ui.wordCelebrationLocalAudio");
+        draft.celebration = celebration;
+        this.updateWordCelebrationStatusByKey(key);
+      }catch{
+        this.showSettingsTransferStatus(t("ui.wordCelebrationUploadError"));
+      }
+    }
+
+    async applyWordCelebrationStickerUpload(key, file){
+      if(!key || !file) return;
+      try{
+        const src = await this.readLocalImage(file);
+        const draft = this.wordOverridesDraft[key] || (this.wordOverridesDraft[key] = {});
+        const celebration = draft.celebration || { enabled: true, audioSrc: "", audioLabel: "", audioVolume: 70, durationMs: CELEBRATION_MS, fxStickerSrc: "", fxMode: "default" };
+        celebration.enabled = true;
+        celebration.fxStickerSrc = src;
+        celebration.fxMode = "sticker";
+        draft.celebration = celebration;
+        this.updateWordCelebrationStatusByKey(key);
+      }catch{
+        this.showSettingsTransferStatus(t("ui.wordCelebrationUploadError"));
+      }
     }
 
     renderWordImagesEditor(category, categoryLabel, words){
       const editor = this.settingsGrid.querySelector(`[data-word-images="${category}"]`);
       if(!editor) return;
 
-      editor.innerHTML = "";
       if(category === "famiglia") return;
-
-      for(const word of words){
-        const key = wordImageKey(category, word);
-        const selected = this.preferredWordImagesDraft[key];
-
-        const row = document.createElement("div");
-        row.className = "word-image-row";
-
-        const name = document.createElement("div");
-        name.className = "word-image-name";
-        name.textContent = word.toUpperCase();
-
-        const actions = document.createElement("div");
-        actions.className = "word-image-actions";
-
-        const choose = document.createElement("button");
-        choose.type = "button";
-        choose.className = "secondary";
-        choose.dataset.selectWordImage = category;
-        choose.dataset.word = word;
-        choose.dataset.categoryLabel = categoryLabel || getCategoryLabel(category);
-        choose.textContent = selected ? t("ui.changeWordImage") : t("ui.selectWordImage");
-
-        const clear = document.createElement("button");
-        clear.type = "button";
-        clear.className = "secondary";
-        clear.dataset.clearWordImage = category;
-        clear.dataset.word = word;
-        clear.disabled = !selected;
-        clear.textContent = t("ui.clearWordImage");
-
-        actions.append(choose, clear);
-
-        const status = document.createElement("div");
-        status.className = "word-image-status";
-        status.textContent = selected ? t("ui.wordImageSelected") : t("ui.wordImageAutomatic");
-
-        row.append(name, actions, status);
-
-        if(selected){
-          const zoomControl = document.createElement("div");
-          zoomControl.className = "slider-control word-image-zoom-control";
-
-          const zoomLabel = document.createElement("label");
-          zoomLabel.htmlFor = `word-image-zoom-${key}`;
-
-          const zoomTitle = document.createElement("span");
-          zoomTitle.textContent = t("ui.pictureZoom");
-
-          const zoomValue = document.createElement("span");
-          zoomValue.className = "slider-value";
-          zoomValue.dataset.wordImageZoomValue = "true";
-          zoomValue.textContent = `${this.pictureZoomToSlider(selected.zoomPercent)}%`;
-
-          zoomLabel.append(zoomTitle, zoomValue);
-
-          const zoomInput = document.createElement("input");
-          zoomInput.type = "range";
-          zoomInput.id = `word-image-zoom-${key}`;
-          zoomInput.min = String(MIN_PICTURE_ZOOM_PERCENT);
-          zoomInput.max = String(MAX_PICTURE_ZOOM_PERCENT);
-          zoomInput.step = String(PICTURE_ZOOM_STEP_PERCENT);
-          zoomInput.value = this.pictureZoomToSlider(selected.zoomPercent);
-          zoomInput.dataset.wordImageZoom = "true";
-          zoomInput.dataset.wordImageZoomCategory = category;
-          zoomInput.dataset.wordImageZoomWord = word;
-
-          zoomControl.append(zoomLabel, zoomInput);
-          row.appendChild(zoomControl);
-        }
-
-        editor.appendChild(row);
-      }
+      const selectedWord = this.renderWordConfigPicker(editor, category, words);
+      if(!selectedWord) return;
+      editor.appendChild(this.buildSingleWordConfigRow(category, categoryLabel, selectedWord));
     }
 
     refreshWordImageEditors(){
+      const validKeys = new Set();
       for(const category of CATEGORY_ORDER){
         const wordsInput = this.settingsGrid.querySelector(`[data-words="${category}"]`);
-        this.renderWordImagesEditor(category, getCategoryLabel(category), sanitizeWordList(wordsInput ? wordsInput.value : []));
+        const words = sanitizeWordList(wordsInput ? wordsInput.value : []);
+        if(category !== "famiglia"){
+          for(const word of words){
+            validKeys.add(wordImageKey(category, word));
+          }
+        }
+        this.renderWordImagesEditor(category, getCategoryLabel(category), words);
       }
 
       for(const card of this.settingsGrid.querySelectorAll("[data-custom-category]")){
         const categoryId = card.dataset.customId;
         const labelInput = card.querySelector(`[data-custom-label="${categoryId}"]`);
         const wordsInput = card.querySelector(`[data-custom-words="${categoryId}"]`);
+        const words = sanitizeWordList(wordsInput ? wordsInput.value : []);
+        for(const word of words){
+          validKeys.add(wordImageKey(categoryId, word));
+        }
         this.renderWordImagesEditor(
           categoryId,
           labelInput ? labelInput.value.trim() : "",
-          sanitizeWordList(wordsInput ? wordsInput.value : [])
+          words
         );
+      }
+
+      for(const key of Object.keys(this.wordOverridesDraft)){
+        if(!validKeys.has(key)){
+          delete this.wordOverridesDraft[key];
+        }
       }
     }
 
@@ -893,9 +1475,9 @@ window.GiocoTastiera = window.GiocoTastiera || {};
     removeCustomCategory(id){
       this.syncCustomCategoryDrafts();
       this.customCategoryDrafts = this.customCategoryDrafts.filter(category => category.id !== id);
-      for(const key of Object.keys(this.preferredWordImagesDraft)){
+      for(const key of Object.keys(this.wordOverridesDraft)){
         if(key.startsWith(`${id.toLowerCase()}:`)){
-          delete this.preferredWordImagesDraft[key];
+          delete this.wordOverridesDraft[key];
         }
       }
       this.renderCustomCategoryCards(this.customCategoryDrafts);
@@ -1227,9 +1809,16 @@ window.GiocoTastiera = window.GiocoTastiera || {};
       this.currentImagePickerPage = 0;
       this.showSettingsMainView(false);
       this.setImagePickerLoading(false);
+      this.selectedWordConfigByCategory = {};
       this.familyPictureDrafts = Object.assign({}, settings.familyPictures || {});
-      this.preferredWordImagesDraft = Object.fromEntries(
-        Object.entries(settings.preferredWordImages || {}).map(([key, value]) => [key, Object.assign({}, value)])
+      this.wordOverridesDraft = Object.fromEntries(
+        Object.entries(settings.wordOverrides || {}).map(([key, value]) => [
+          key,
+          {
+            image: value && value.image ? Object.assign({}, value.image) : undefined,
+            celebration: value && value.celebration ? Object.assign({}, value.celebration) : undefined
+          }
+        ])
       );
       this.customCategoryDrafts = Array.isArray(settings.customCategories)
         ? settings.customCategories.map(category => ({
@@ -1261,10 +1850,12 @@ window.GiocoTastiera = window.GiocoTastiera || {};
       this.speechVolumeRange.value = this.volumeToSlider(settings.speechVolume);
       this.celebrationMusicVolumeRange.value = this.volumeToSlider(settings.celebrationMusicVolume);
       this.celebrationDelayRange.value = this.delayToSlider(settings.celebrationStartDelayMs);
+      this.celebrationDurationRange.value = this.durationToSlider(settings.celebrationDurationMs);
       this.updatePercentLabel(this.letterSizeRange, this.letterSizeValue);
       this.updateVolumeLabel(this.speechVolumeRange, this.speechVolumeValue);
       this.updateVolumeLabel(this.celebrationMusicVolumeRange, this.celebrationMusicVolumeValue);
       this.updateDelayLabel(this.celebrationDelayRange, this.celebrationDelayValue);
+      this.updateDelayLabel(this.celebrationDurationRange, this.celebrationDurationValue);
       this.picturePositionSide.checked = settings.picturePosition !== "bottom";
       this.picturePositionBottom.checked = settings.picturePosition === "bottom";
       for(const category of CATEGORY_ORDER){
@@ -1298,6 +1889,7 @@ window.GiocoTastiera = window.GiocoTastiera || {};
       next.speechVolume = this.sliderToVolume(this.speechVolumeRange, next.speechVolume);
       next.celebrationMusicVolume = this.sliderToVolume(this.celebrationMusicVolumeRange, next.celebrationMusicVolume);
       next.celebrationStartDelayMs = this.sliderToDelay(this.celebrationDelayRange, next.celebrationStartDelayMs);
+      next.celebrationDurationMs = this.sliderToDuration(this.celebrationDurationRange, next.celebrationDurationMs);
       next.picturePosition = this.picturePositionBottom.checked ? "bottom" : "side";
 
       for(const category of CATEGORY_ORDER){
@@ -1319,14 +1911,24 @@ window.GiocoTastiera = window.GiocoTastiera || {};
       }
 
       next.familyPictures = this.readFamilyPictures(next.categories.famiglia);
-      next.preferredWordImages = {};
+      next.wordOverrides = {};
 
       for(const category of CATEGORY_ORDER){
         if(category === "famiglia") continue;
         for(const word of next.categories[category]){
           const key = wordImageKey(category, word);
-          if(this.preferredWordImagesDraft[key]){
-            next.preferredWordImages[key] = Object.assign({}, this.preferredWordImagesDraft[key]);
+          const draft = this.wordOverridesDraft[key];
+          if(draft && (draft.image || draft.celebration)){
+            next.wordOverrides[key] = {};
+            if(draft.image && draft.image.src){
+              next.wordOverrides[key].image = Object.assign({}, draft.image);
+            }
+            if(draft.celebration && (draft.celebration.enabled || draft.celebration.audioSrc || draft.celebration.fxStickerSrc)){
+              next.wordOverrides[key].celebration = Object.assign({}, draft.celebration);
+            }
+            if(!next.wordOverrides[key].image && !next.wordOverrides[key].celebration){
+              delete next.wordOverrides[key];
+            }
           }
         }
       }
@@ -1334,8 +1936,18 @@ window.GiocoTastiera = window.GiocoTastiera || {};
       for(const category of next.customCategories){
         for(const word of category.words){
           const key = wordImageKey(category.id, word);
-          if(this.preferredWordImagesDraft[key]){
-            next.preferredWordImages[key] = Object.assign({}, this.preferredWordImagesDraft[key]);
+          const draft = this.wordOverridesDraft[key];
+          if(draft && (draft.image || draft.celebration)){
+            next.wordOverrides[key] = {};
+            if(draft.image && draft.image.src){
+              next.wordOverrides[key].image = Object.assign({}, draft.image);
+            }
+            if(draft.celebration && (draft.celebration.enabled || draft.celebration.audioSrc || draft.celebration.fxStickerSrc)){
+              next.wordOverrides[key].celebration = Object.assign({}, draft.celebration);
+            }
+            if(!next.wordOverrides[key].image && !next.wordOverrides[key].celebration){
+              delete next.wordOverrides[key];
+            }
           }
         }
       }
@@ -1414,8 +2026,39 @@ window.GiocoTastiera = window.GiocoTastiera || {};
         speed: 0.9 + Math.random() * 0.8,
         sway: 12 + Math.random() * 18,
         seed: Math.random() * Math.PI * 2,
-        color: colors[index % colors.length]
+        color: colors[index % colors.length],
+        scale: 0.8 + Math.random() * 0.5
       }));
+    }
+
+    loadImageAsset(src){
+      return new Promise((resolve, reject) => {
+        if(!src){
+          reject(new Error("missing-image"));
+          return;
+        }
+        const image = new Image();
+        image.onload = () => resolve(image);
+        image.onerror = () => reject(new Error("image-error"));
+        image.src = src;
+      });
+    }
+
+    async prepareCelebrationFxConfig(config){
+      if(!config || config.mode !== "sticker" || !config.stickerSrc){
+        return { mode: "default" };
+      }
+
+      try{
+        const stickerImage = await this.loadImageAsset(config.stickerSrc);
+        return {
+          mode: "sticker",
+          stickerSrc: config.stickerSrc,
+          stickerImage
+        };
+      }catch{
+        return { mode: "default" };
+      }
     }
 
     stopCelebrationFx(){
@@ -1521,6 +2164,17 @@ window.GiocoTastiera = window.GiocoTastiera || {};
         return;
       }
 
+      if(friend.theme === "sticker" && friend.image){
+        const size = friend.radius * 2.4 * (friend.scale || 1);
+        this.fxCtx.save();
+        this.fxCtx.globalAlpha = alpha;
+        this.fxCtx.translate(x, y);
+        this.fxCtx.rotate(Math.sin(time / 420 + friend.seed) * 0.16);
+        this.fxCtx.drawImage(friend.image, -size / 2, -size / 2, size, size);
+        this.fxCtx.restore();
+        return;
+      }
+
       this.drawFace(x, y, friend.radius * 0.82, alpha, "#c98b52", "#8a5a31");
     }
 
@@ -1529,14 +2183,18 @@ window.GiocoTastiera = window.GiocoTastiera || {};
       return themes[Math.floor(Math.random() * themes.length)];
     }
 
-    startCelebrationFx(){
+    startCelebrationFx(config = null, durationMs = CELEBRATION_MS){
       this.stopCelebrationFx();
-      const theme = this.pickCelebrationTheme();
+      const theme = config && config.mode === "sticker" ? "sticker" : this.pickCelebrationTheme();
       this.fxState = {
         start: performance.now(),
-        duration: CELEBRATION_MS,
+        duration: Number(durationMs) > 0 ? Number(durationMs) : CELEBRATION_MS,
         confetti: this.createConfetti(),
-        friends: this.createCelebrationFriends(theme),
+        friends: this.createCelebrationFriends(theme).map(friend => (
+          theme === "sticker"
+            ? Object.assign({}, friend, { image: config && config.stickerImage ? config.stickerImage : null })
+            : friend
+        )),
         raf: 0
       };
 

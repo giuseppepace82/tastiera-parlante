@@ -31,6 +31,7 @@ window.GiocoTastiera = window.GiocoTastiera || {};
       this.celebrationRunId = 0;
       this.activeMusicRunId = 0;
       this.wordReadyForInput = false;
+      this.defaultCelebrationAudioSrc = this.view.audio ? (this.view.audio.getAttribute("src") || this.view.audio.src || "") : "";
 
       document.addEventListener("click", this.unlockAudioFromPointerOnce, { once: true });
       document.addEventListener("keydown", this.unlockAudioFromKeyboardOnce, { once: true });
@@ -79,7 +80,10 @@ window.GiocoTastiera = window.GiocoTastiera || {};
     }
 
     applySettings(nextSettings, options = {}){
-      this.model.updateSettings(nextSettings);
+      const saved = this.model.updateSettings(nextSettings);
+      if(!saved){
+        this.view.showSettingsTransferStatus(ns.config.t("ui.settingsTransferErrorSave"));
+      }
       this.imageService.setCacheEnabled(this.model.settings.enableImageCache === true);
       this.applyAudioSettings();
       this.view.applyColorTheme(this.model.settings);
@@ -90,6 +94,7 @@ window.GiocoTastiera = window.GiocoTastiera || {};
       if(options.refreshWord !== false){
         this.newWord();
       }
+      return saved;
     }
 
     exportSettings(){
@@ -118,9 +123,9 @@ window.GiocoTastiera = window.GiocoTastiera || {};
         const content = await file.text();
         const parsed = JSON.parse(content);
         const importedSettings = parsed && typeof parsed === "object" && parsed.settings ? parsed.settings : parsed;
-        this.applySettings(importedSettings, { refreshWord: true });
+        const saved = this.applySettings(importedSettings, { refreshWord: true });
         this.view.fillSettingsEditor(this.model.settings);
-        this.view.showSettingsTransferStatus(ns.config.t("ui.settingsTransferSuccessImport"));
+        this.view.showSettingsTransferStatus(saved ? ns.config.t("ui.settingsTransferSuccessImport") : ns.config.t("ui.settingsTransferErrorSave"));
       }catch{
         this.view.showSettingsTransferStatus(ns.config.t("ui.settingsTransferErrorImport"));
       }
@@ -155,6 +160,10 @@ window.GiocoTastiera = window.GiocoTastiera || {};
 
     getCelebrationStartDelay(){
       return Number(this.model.settings.celebrationStartDelayMs) || 0;
+    }
+
+    getCelebrationDuration(){
+      return Number(this.model.settings.celebrationDurationMs) || CELEBRATION_MS;
     }
 
     setMusicLevel(level){
@@ -206,12 +215,14 @@ window.GiocoTastiera = window.GiocoTastiera || {};
 
       this.view.saveSettings.addEventListener("click", () => {
         const nextSettings = this.view.readSettingsEditor(createDefaultSettings, sanitizeWords, DEFAULT_LIBRARY);
-        this.applySettings(nextSettings, { refreshWord: true });
-        this.view.closeOverlay(this.view.settingsOverlay);
+        const saved = this.applySettings(nextSettings, { refreshWord: true });
+        if(saved){
+          this.view.closeOverlay(this.view.settingsOverlay);
+        }
       });
 
       this.view.resetSettings.addEventListener("click", () => {
-        this.model.resetSettings();
+        const saved = this.model.resetSettings();
         this.imageService.setCacheEnabled(this.model.settings.enableImageCache === true);
         this.applyAudioSettings();
         this.view.applyColorTheme(this.model.settings);
@@ -220,7 +231,7 @@ window.GiocoTastiera = window.GiocoTastiera || {};
         this.view.applyPictureLayout(this.model.settings);
         this.view.applyPicturePanelSize(this.model.settings);
         this.view.fillSettingsEditor(this.model.settings);
-        this.view.showSettingsTransferStatus("");
+        this.view.showSettingsTransferStatus(saved ? "" : ns.config.t("ui.settingsTransferErrorSave"));
       });
 
       this.view.closeSettings.addEventListener("click", () => {
@@ -350,7 +361,7 @@ window.GiocoTastiera = window.GiocoTastiera || {};
     }
 
     waitForAudioReady(audio){
-      if(audio.readyState >= HTMLMediaElement.HAVE_METADATA){
+      if(audio.readyState >= HTMLMediaElement.HAVE_CURRENT_DATA){
         return Promise.resolve();
       }
 
@@ -377,16 +388,68 @@ window.GiocoTastiera = window.GiocoTastiera || {};
       this.activeMusicRunId = 0;
     }
 
-    async playMusic(runId){
+    getWordCelebrationOverride(){
+      const entry = this.model.currentEntry;
+      if(!entry || entry.category === "famiglia") return null;
+      const key = ns.model.wordImageKey(entry.category, entry.word);
+      const override = this.model.settings.wordOverrides ? this.model.settings.wordOverrides[key] : null;
+      return override && override.celebration ? override.celebration : null;
+    }
+
+    async getEffectiveWordCelebrationConfig(){
+      const override = this.getWordCelebrationOverride();
+      if(!override || override.enabled !== true){
+        return {
+          audioSrc: this.defaultCelebrationAudioSrc,
+          audioMode: "default",
+          audioVolume: this.getMusicOutputVolume(),
+          durationMs: this.getCelebrationDuration(),
+          fx: { mode: "default" }
+        };
+      }
+
+      let fx = { mode: "default" };
+      if(override.fxMode === "sticker" && override.fxStickerSrc){
+        fx = await this.view.prepareCelebrationFxConfig({
+          mode: "sticker",
+          stickerSrc: override.fxStickerSrc
+        });
+      }
+
+      return {
+        audioSrc: override.audioSrc || this.defaultCelebrationAudioSrc,
+        audioMode: override.audioSrc ? "custom" : "default",
+        audioVolume: (override.audioSrc ? Math.min(Math.max((Number(override.audioVolume) || 0) / BASE_VOLUME_PERCENT, 0), 1) : this.getMusicOutputVolume()),
+        durationMs: Number(override.durationMs) || this.getCelebrationDuration(),
+        fx
+      };
+    }
+
+    configureCelebrationAudioSource(audioSrc){
+      const audio = this.view.audio;
+      const nextSrc = audioSrc || this.defaultCelebrationAudioSrc;
+      const currentSrc = audio.getAttribute("src") || audio.src || "";
+      if(currentSrc === nextSrc) return;
+      audio.pause();
+      audio.setAttribute("src", nextSrc);
+      audio.load();
+    }
+
+    async playMusic(runId, celebrationConfig){
       const audio = this.view.audio;
       if(runId !== this.celebrationRunId) return;
+      this.configureCelebrationAudioSource(celebrationConfig && celebrationConfig.audioSrc ? celebrationConfig.audioSrc : this.defaultCelebrationAudioSrc);
       await this.waitForAudioReady(audio);
       if(runId !== this.celebrationRunId) return;
 
+      const isDefaultClip = !celebrationConfig || celebrationConfig.audioMode !== "custom";
+      const durationMs = celebrationConfig && Number(celebrationConfig.durationMs) > 0
+        ? Number(celebrationConfig.durationMs)
+        : this.getCelebrationDuration();
       const hasDuration = Number.isFinite(audio.duration) && audio.duration > 0;
-      const clipSeconds = hasDuration ? Math.min(CELEBRATION_MS / 1000, audio.duration) : 0;
+      const clipSeconds = hasDuration ? Math.min(durationMs / 1000, audio.duration) : 0;
       const maxStart = hasDuration ? Math.max(audio.duration - clipSeconds, 0) : 0;
-      const start = hasDuration ? Math.random() * maxStart : 0;
+      const start = isDefaultClip && hasDuration ? Math.random() * maxStart : 0;
 
       this.resumeAudioContext();
       audio.pause();
@@ -409,9 +472,12 @@ window.GiocoTastiera = window.GiocoTastiera || {};
         this.stopMusic(runId);
         return;
       }
-      this.fadeVolume(0, this.getMusicOutputVolume(), FADE_IN_MS);
+      const targetVolume = celebrationConfig && typeof celebrationConfig.audioVolume === "number"
+        ? celebrationConfig.audioVolume
+        : this.getMusicOutputVolume();
+      this.fadeVolume(0, targetVolume, FADE_IN_MS);
 
-      const fadeOutDelay = Math.max(CELEBRATION_MS - FADE_OUT_MS, 0);
+      const fadeOutDelay = Math.max(durationMs - FADE_OUT_MS, 0);
       const fadeOutTimer = setTimeout(() => {
         if(runId !== this.celebrationRunId) return;
         const currentLevel = this.musicGainNode ? this.musicGainNode.gain.value : audio.volume;
@@ -431,18 +497,20 @@ window.GiocoTastiera = window.GiocoTastiera || {};
       this.celebrationActive = true;
       const runId = ++this.celebrationRunId;
       const celebrationDelay = this.getCelebrationStartDelay();
-      const musicTimer = setTimeout(() => {
+      const musicTimer = setTimeout(async () => {
         if(runId !== this.celebrationRunId) return;
-        this.playMusic(runId);
-        this.view.startCelebrationFx();
+        const celebrationConfig = await this.getEffectiveWordCelebrationConfig();
+        if(runId !== this.celebrationRunId) return;
+        await this.playMusic(runId, celebrationConfig);
+        if(runId !== this.celebrationRunId) return;
+        this.view.startCelebrationFx(celebrationConfig.fx, celebrationConfig.durationMs);
+        const nextWordTimer = setTimeout(() => {
+          if(runId !== this.celebrationRunId) return;
+          this.finishCelebration();
+        }, celebrationConfig.durationMs);
+        this.celebrationTimers.push(nextWordTimer);
       }, celebrationDelay);
-
-      const nextWordTimer = setTimeout(() => {
-        if(runId !== this.celebrationRunId) return;
-        this.finishCelebration();
-      }, celebrationDelay + CELEBRATION_MS);
-
-      this.celebrationTimers.push(musicTimer, nextWordTimer);
+      this.celebrationTimers.push(musicTimer);
     }
 
     skipCelebration(){
