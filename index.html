@@ -464,6 +464,57 @@ h1{
   background:rgba(47,42,31,0.18);
   backdrop-filter:blur(2px);
 }
+.mobile-intro-overlay{
+  z-index:21;
+  padding:20px 20px 32px;
+  background:
+    radial-gradient(circle at top, rgba(255,255,255,0.42) 0%, rgba(255,255,255,0.08) 38%, rgba(0,0,0,0) 60%),
+    linear-gradient(180deg, rgba(255,248,220,0.97) 0%, rgba(255,237,191,0.98) 100%);
+  backdrop-filter:blur(8px);
+}
+.mobile-intro-shell{
+  width:min(100%, 560px);
+  min-height:min(100vh - 40px, 860px);
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  justify-content:space-between;
+  gap:24px;
+}
+.mobile-intro-spacer{
+  width:100%;
+  min-height:32px;
+}
+.mobile-intro-brand{
+  flex:1;
+  width:100%;
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  justify-content:center;
+  gap:18px;
+  text-align:center;
+}
+.mobile-intro-logo{
+  width:min(100%, 420px);
+  height:auto;
+  filter:drop-shadow(0 14px 28px rgba(0,0,0,0.12));
+}
+.mobile-intro-subtitle{
+  margin:0;
+  max-width:300px;
+  color:var(--subtitle-ink);
+  font-size:0.96rem;
+  font-weight:800;
+  letter-spacing:0.1em;
+  text-transform:uppercase;
+}
+.mobile-intro-actions{
+  width:100%;
+  display:flex;
+  justify-content:center;
+  padding-bottom:max(8px, env(safe-area-inset-bottom));
+}
 .audio-start-button{
   width:min(30vw, 148px);
   height:min(30vw, 148px);
@@ -1141,15 +1192,17 @@ canvas{
     padding-top:16px;
   }
   .topbar{
-    flex-direction:column;
-    align-items:stretch;
+    display:block;
+    margin-bottom:12px;
   }
-  .brand-hero{
-    padding:16px;
+  .title-wrap{
+    display:none;
   }
-  .brand-logo-shell{
-    width:min(100%, 460px);
-    max-width:100%;
+  .setup-button{
+    position:fixed;
+    top:12px;
+    right:12px;
+    z-index:15;
   }
   .panel,
   .modal{
@@ -1157,6 +1210,16 @@ canvas{
   }
   .picture-frame{
     min-height:240px;
+  }
+  .mobile-intro-shell{
+    min-height:calc(100vh - 40px);
+  }
+  .mobile-intro-logo{
+    width:min(100%, 340px);
+  }
+  .mobile-intro-subtitle{
+    max-width:280px;
+    font-size:0.88rem;
   }
 }
 </style>
@@ -1200,6 +1263,19 @@ canvas{
 
   <div class="app-credit" data-i18n="ui.developerCredit">Applicazione sviluppata da Giuseppe Pace.</div>
 
+</div>
+
+<div id="mobileIntroOverlay" class="overlay mobile-intro-overlay" aria-hidden="true">
+  <div class="mobile-intro-shell">
+    <div class="mobile-intro-spacer" aria-hidden="true"></div>
+    <div class="mobile-intro-brand">
+      <img class="mobile-intro-logo" src="assets/logo-tastiera-parlante.svg" alt="Tastiera Parlante">
+      <p class="mobile-intro-subtitle" data-i18n="ui.subtitle">LETTERE, SUONI E PAROLE DA COMPLETARE</p>
+    </div>
+    <div class="mobile-intro-actions">
+      <button id="mobileIntroPlayButton" class="audio-start-button" type="button" data-i18n-aria-label="ui.audioStartAriaLabel" aria-label="Avvia audio"></button>
+    </div>
+  </div>
 </div>
 
 <div id="audioStartOverlay" class="overlay audio-start-overlay" aria-hidden="true">

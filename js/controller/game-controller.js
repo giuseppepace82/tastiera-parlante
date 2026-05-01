@@ -31,6 +31,7 @@ window.GiocoTastiera = window.GiocoTastiera || {};
       this.celebrationRunId = 0;
       this.activeMusicRunId = 0;
       this.wordReadyForInput = false;
+      this.mobileIntroActive = false;
       this.defaultCelebrationAudioSrc = this.view.audio ? (this.view.audio.getAttribute("src") || this.view.audio.src || "") : "";
 
       document.addEventListener("click", this.unlockAudioFromPointerOnce, { once: true });
@@ -47,11 +48,14 @@ window.GiocoTastiera = window.GiocoTastiera || {};
       this.audioUnlocked = true;
       this.enableSpeech();
       this.view.hideAudioStartPrompt();
+      this.view.hideMobileIntro();
       document.removeEventListener("click", this.unlockAudioFromPointerOnce);
       document.removeEventListener("keydown", this.unlockAudioFromKeyboardOnce);
       this.resumeAudioContext();
-      if(options.announceCurrentWord && !wasUnlocked && this.model.currentEntry && this.wordReadyForInput){
-        this.scheduleWordAnnouncement(this.model.currentEntry.word, 0);
+      const parsedDelay = Number(options.announceDelayMs);
+      const announceDelayMs = Number.isFinite(parsedDelay) && parsedDelay >= 0 ? parsedDelay : 0;
+      if(options.announceCurrentWord && (!wasUnlocked || announceDelayMs > 0) && this.model.currentEntry && this.wordReadyForInput){
+        this.scheduleWordAnnouncement(this.model.currentEntry.word, announceDelayMs);
       }
     };
 
@@ -74,7 +78,10 @@ window.GiocoTastiera = window.GiocoTastiera || {};
       this.view.applyPicturePanelSize(this.model.settings);
       this.view.showSettingsTransferStatus("");
       this.newWord();
-      if(this.shouldShowAudioStartPrompt()){
+      this.mobileIntroActive = this.shouldShowMobileIntro();
+      if(this.mobileIntroActive){
+        this.view.showMobileIntro();
+      }else if(this.shouldShowAudioStartPrompt()){
         this.view.showAudioStartPrompt();
       }
     }
@@ -145,9 +152,14 @@ window.GiocoTastiera = window.GiocoTastiera || {};
     }
 
     shouldShowAudioStartPrompt(){
+      if(this.mobileIntroActive || this.shouldShowMobileIntro()) return false;
       const userAgent = navigator.userAgent || "";
       const isChrome = /\bChrome\//.test(userAgent) && !/\bEdg\//.test(userAgent) && !/\bOPR\//.test(userAgent);
       return isChrome && !(navigator.userActivation && navigator.userActivation.hasBeenActive);
+    }
+
+    shouldShowMobileIntro(){
+      return window.matchMedia("(max-width: 560px)").matches;
     }
 
     getSpeechOutputVolume(){
@@ -181,6 +193,19 @@ window.GiocoTastiera = window.GiocoTastiera || {};
     }
 
     bindEvents(){
+      if(this.view.mobileIntroPlayButton){
+        this.view.mobileIntroPlayButton.addEventListener("click", async event => {
+          event.preventDefault();
+          event.stopPropagation();
+          this.mobileIntroActive = false;
+          this.unlockAudio({ announceCurrentWord: false });
+          await this.playIntroMusic();
+          if(this.model.currentEntry && this.wordReadyForInput){
+            this.scheduleWordAnnouncement(this.model.currentEntry.word, 1450);
+          }
+        });
+      }
+
       if(this.view.audioStartButton){
         this.view.audioStartButton.addEventListener("click", event => {
           event.preventDefault();
@@ -267,6 +292,8 @@ window.GiocoTastiera = window.GiocoTastiera || {};
     };
 
     onKeyDown = (event) => {
+      if(this.mobileIntroActive) return;
+
       if(!this.audioUnlocked){
         this.unlockAudio();
       }
@@ -386,6 +413,43 @@ window.GiocoTastiera = window.GiocoTastiera || {};
       audio.pause();
       this.setMusicLevel(0);
       this.activeMusicRunId = 0;
+    }
+
+    async playIntroMusic(){
+      const audio = this.view.audio;
+      if(!audio || !this.defaultCelebrationAudioSrc) return;
+
+      this.clearCelebrationTimers();
+      this.clearAudioFade();
+      this.configureCelebrationAudioSource(this.defaultCelebrationAudioSrc);
+      await this.waitForAudioReady(audio);
+      if(this.mobileIntroActive) return;
+
+      audio.pause();
+      try{
+        audio.currentTime = 0;
+      }catch{
+        audio.currentTime = 0;
+      }
+
+      const targetVolume = Math.min(this.getMusicOutputVolume(), 0.42);
+      this.setMusicLevel(0);
+      try{
+        await audio.play();
+      }catch{
+        return;
+      }
+
+      this.fadeVolume(0, targetVolume, 280);
+      const introDurationMs = 1800;
+      const fadeOutTimer = setTimeout(() => {
+        const currentLevel = this.musicGainNode ? this.musicGainNode.gain.value : audio.volume;
+        this.fadeVolume(currentLevel, 0, 420, () => {
+          audio.pause();
+          this.setMusicLevel(0);
+        });
+      }, Math.max(introDurationMs - 420, 0));
+      this.celebrationTimers.push(fadeOutTimer);
     }
 
     getWordCelebrationOverride(){
@@ -564,7 +628,9 @@ window.GiocoTastiera = window.GiocoTastiera || {};
         this.model.settings
       );
       this.wordReadyForInput = true;
-      this.scheduleWordAnnouncement(entry.word);
+      if(!this.mobileIntroActive){
+        this.scheduleWordAnnouncement(entry.word);
+      }
     }
   }
 

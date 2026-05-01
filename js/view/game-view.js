@@ -37,6 +37,8 @@ window.GiocoTastiera = window.GiocoTastiera || {};
       this.wordDiv = document.getElementById("word");
       this.typedDiv = document.getElementById("typed");
       this.audio = document.getElementById("music");
+      this.mobileIntroOverlay = document.getElementById("mobileIntroOverlay");
+      this.mobileIntroPlayButton = document.getElementById("mobileIntroPlayButton");
       this.audioStartOverlay = document.getElementById("audioStartOverlay");
       this.audioStartButton = document.getElementById("audioStartButton");
       this.layout = document.querySelector(".layout");
@@ -1976,6 +1978,19 @@ window.GiocoTastiera = window.GiocoTastiera || {};
     hideAudioStartPrompt(){
       if(!this.audioStartOverlay) return;
       this.closeOverlay(this.audioStartOverlay);
+    }
+
+    showMobileIntro(){
+      if(!this.mobileIntroOverlay) return;
+      this.openOverlay(this.mobileIntroOverlay);
+      if(this.mobileIntroPlayButton){
+        this.mobileIntroPlayButton.focus();
+      }
+    }
+
+    hideMobileIntro(){
+      if(!this.mobileIntroOverlay) return;
+      this.closeOverlay(this.mobileIntroOverlay);
     }
 
     isSetupOpen(){
